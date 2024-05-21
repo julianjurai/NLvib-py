@@ -76,6 +76,7 @@
 %                       'dynamic_Dscale' (default: 0)
 %       eps             Tolerance of the norm of the residual in order to
 %                       identify failure in convergence
+% 	epsFD 		Finite difference step size
 %       noconv_stepcor  In case of failure in convergence, the step size is
 %                       either iteratively decreased by factor 2 or
 %                       decreased and increased in an alternating manner
@@ -115,6 +116,7 @@ Sopt = struct('flag',1,'predictor','tangent', ...
     'stepadapt',1,'stoponerror',1,...
     'reversaltolerance',.1,...
     'stepmax',1e3,'eps',1e-4,'noconv_stepcor','red','errmax',3,...
+    'epsFD',1e-7,...
     'Dscale',ones(length(x0)+1,1),...
     'jac','full','dynamicDscale',0);
 if nargin>5 && isstruct(varargin{1})
@@ -551,7 +553,7 @@ switch Sopt.jac
         [R,dRdx] = feval(fun_residual,diag(Sopt.Dscale)*X);
         
         % Approximate dfdlam using finite differences
-        dlam = max(Sopt.eps*abs(X(end)),Sopt.eps);
+        dlam = max(Sopt.epsFD*abs(X(end)),Sopt.epsFD);
         Xtmp = X; Xtmp(end) = X(end)+dlam;
         dlam = Xtmp(end)-X(end);
         Rp = feval(fun_residual,diag(Sopt.Dscale)*Xtmp);
@@ -559,7 +561,7 @@ switch Sopt.jac
         dRdX = [dRdx dRdlam];
     otherwise
         R = feval(fun_residual,diag(Sopt.Dscale)*X);
-        Smyopt = struct('epsrel',Sopt.eps,'epsabs',Sopt.eps, ...
+        Smyopt = struct('epsrel',Sopt.epsFD,'epsabs',Sopt.epsFD, ...
             'ikeydx',1,'ikeyfd',1);
         dRdX = finite_difference_jacobian(fun_residual,...
             diag(Sopt.Dscale)*X,Smyopt);
