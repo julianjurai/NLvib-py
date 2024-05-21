@@ -5,6 +5,8 @@ An overview of its capabilities, included examles, the monograph on Harmonic Bal
 
 Please also see the manual in the SRC folder.
 
+We always appreciate any kind of feedback you may have. If you encounter any problems, which you cannot solve with the manual or the book, please do not hesitate to contact the authors of this code (Johann Gross and Malte Krack; for contact details see headers or https://www.ila.uni-stuttgart.de/nlvib/).
+
 The tool should work well with a wide range of Matlab releases. It mainly relies on the optimization toolbox.
 To get it to run under OCTAVE, you need to change the line(s) that thes the solver options to something like:
    Solopt = optimset(optimset ("fsolve"),'Display','off',... 'Jacobian','on','MaxIter',50);
