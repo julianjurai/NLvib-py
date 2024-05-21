@@ -124,7 +124,7 @@ for iex=1:length(exc_lev)
     
     % Solve and continue w.r.t. Om
     ds = .005;
-    Sopt = struct('Dscale',[qscl*ones(size(y0));Om_s]);
+    Sopt = struct('Dscale',[qscl*ones(size(y0));Om_s],'eps',1e-6);
     X = solve_and_continue(y0,...
         @(X) HB_residual(X,oscillator,H,N,analysis),...
         Om_s,Om_e,ds,Sopt);
