@@ -19,12 +19,16 @@
 % 
 % In this example, we show that the complete curve can be computed with ca.
 % 100 solution points for an appropriate choice of parameters, which should
-% run through in less than 2 minutes on a standard computer. The authors of
-% [1] were unable to provide us with NLvib settings to reproduce the
-% poor performance they encountered. We acknowledge that it may require
-% experience to set parameters of numerical tools properly. We are always
-% happy to try to help if you encounter any problems, which you cannot 
-% solve with the manual or the book.
+% run through in less than 2 minutes on a standard computer. We approached
+% the authors of [1] to obtain the NLvib settings they used to reproduce the
+% poor performance. Apparently, the main problem was that they did not use
+% appropriate values for the DSCALE parameter and did not make use of the
+% dynamicDSCALE option. The sensitivity to those parameters is well-explained
+% in the manual and the book.
+%
+% We acknowledge that it may require experience to set parameters of 
+% numerical tools properly. We are always happy to try to help if you 
+% encounter any problems, which you cannot solve with the manual or the book.
 % 
 % The HB-approximation is verified by numerical time integration using
 % ode15s.
