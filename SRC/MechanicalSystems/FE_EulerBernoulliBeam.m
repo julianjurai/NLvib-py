@@ -125,64 +125,52 @@ classdef FE_EulerBernoulliBeam < MechanicalSystem
             rhoA = rho*thickness*height;
             
             % 1. Divide into elements and nodes
-            Ne = n_nodes-1;                         % number of elements
-            xn = linspace(0,length,n_nodes);        % location of nodes
+            Ne = n_nodes-1; % number of elements
+            if n_nodes<=100
+                % equidistant spacing of nodes
+                xn = linspace(0,length,n_nodes);
+            else
+                % non-equidistant spacing; SEEMS TO BRING NUMERICAL
+                % STABILITY FOR VERY HIGH NUMBER OF NODES
+                leftclamped = strfind(BCs,'clamped');
+                leftclamped = ~isempty(leftclamped) && leftclamped(1)==1;
+                leftpinned = strfind(BCs,'pinned');
+                leftpinned = ~isempty(leftpinned) && leftpinned(1)==1;
+                leftfree = ~leftclamped && ~leftpinned;
+                rightclamped = strfind(BCs,'clamped');
+                rightclamped = ~isempty(rightclamped) && max(rightclamped)>1;
+                rightpinned = strfind(BCs,'pinned');
+                rightpinned = ~isempty(rightpinned) && max(rightpinned)>1;
+                rightfree = ~rightclamped && ~rightpinned;
+                if leftfree && rightfree
+                    xn = linspace(0,length,n_nodes);
+                elseif leftfree && ~rightfree
+                    xn = length*(sin(pi/2*linspace(0,1,n_nodes)));
+                elseif ~leftfree && rightfree
+                    xn = length*(1-cos(pi/2*linspace(0,1,n_nodes)));
+                else % ~leftfree && ~rightfree
+                    xn = length*(1-cos(pi*linspace(0,1,n_nodes)))/2;
+                end
+            end
+            LEN_E = diff(xn);
             
             % 2. Specify element properties
             Nde = 4;
-            % Normalized shape functions and their derivatives
-            psi = {@(xi,l) 1-3*xi.^2+2*xi.^3, ...
-                @(xi,l) l*xi.*(1-xi).^2, ....
-                @(xi,l) xi.^2.*(3-2*xi), ...
-                @(xi,l) l*xi.^2.*(xi-1)};
-%             dpsi = {@(xi,l) -6*xi+6*xi.^2, ...
-%                 @(xi,l) l*(1-xi).^2 - 2*l*xi.(1-xi), ....
-%                 @(xi,l) 2*xi.*(3-2*xi) - 2*xi.^2, ...
-%                 @(xi,l) l*2*xi.*(xi-1) + l*xi.^2};
-            ddpsi = {@(xi,l) -6*ones(size(xi))+12*xi, ...
-                @(xi,l) l*(-4*ones(size(xi))+6*xi), ....
-                @(xi,l) 6*ones(size(xi))-12*xi, ...
-                @(xi,l) l*(-2*ones(size(xi))+6*xi)};
-            % Initialize elements ('Smells like OOP spirit!')
             Elements(1:Ne) = struct('m',zeros(Nde,Nde),'k',zeros(Nde,Nde),...
                 'f',zeros(Nde,1),'l',[],'le',[]);
             for e=1:Ne
-                % Association of nodes
                 Elements(e).le = [e;e+1];
-                
-                % Element size
-                len_e = xn(Elements(e).le(2)) - xn(Elements(e).le(1));
-                Elements(e).l = len_e;
-                
-                % Integration of the upper triangle of the matrices m,k
-                for i=1:Nde
-                    for j=1:i
-                        Elements(e).m(i,j) = integral(@(xi) ...
-                            rhoA*psi{i}(xi,len_e).*psi{j}(xi,len_e)*...
-                            len_e,0,1);
-                        Elements(e).k(i,j) = integral(@(xi) ...
-                            EI*ddpsi{i}(xi,len_e).*ddpsi{j}(xi,len_e)/...
-                            len_e^3,0,1);
-                    end
-                    Elements(e).f(i) = integral(@(xi) psi{j}(xi,len_e)*...
-                        len_e,0,1);
-                end
-                % Supplement symmetric part
-                Elements(e).m = Elements(e).m + Elements(e).m' - ...
-                    diag(diag(Elements(e).m));
-                Elements(e).k = Elements(e).k + Elements(e).k' - ...
-                    diag(diag(Elements(e).k));
-                % For such simple elements we can also integrate analytically:
-                %     Elements(e).m = rhoA*len_e/420*[...
-                %         156 22*len_e 54 -13*len_e;...
-                %         22*len_e 4*len_e^2 13*len_e -3*len_e^2;...
-                %         54 13*len_e 156 -22*len_e;...
-                %         -13*len_e -3*len_e^2 -22*len_e 4*len_e^2];
-                %     Elements(e).k = EI/len_e^3*[...
-                %         12 6*len_e -12 6*len_e;...
-                %         6*len_e 4*len_e^2 -6*len_e 2*len_e^2;...
-                %         -12 -6*len_e 12 -6*len_e;...
-                %         6*len_e 2*len_e^2 -6*len_e 4*len_e^2];
+                len_e = LEN_E(e);
+                Elements(e).m = rhoA*len_e/420*[...
+                    156 22*len_e 54 -13*len_e;...
+                    22*len_e 4*len_e^2 13*len_e -3*len_e^2;...
+                    54 13*len_e 156 -22*len_e;...
+                    -13*len_e -3*len_e^2 -22*len_e 4*len_e^2];
+                Elements(e).k = EI/len_e^3*[...
+                    12 6*len_e -12 6*len_e;...
+                    6*len_e 4*len_e^2 -6*len_e 2*len_e^2;...
+                    -12 -6*len_e 12 -6*len_e;...
+                    6*len_e 2*len_e^2 -6*len_e 4*len_e^2];
             end
             
             % 3. Assemble system M,K
@@ -193,7 +181,7 @@ classdef FE_EulerBernoulliBeam < MechanicalSystem
                 K(ILE,ILE) = K(ILE,ILE) + Elements(e).k;
                 M(ILE,ILE) = M(ILE,ILE) + Elements(e).m;
             end
-            
+
             % Remove rows and colums in accordance with constraints B*q=0,
             % so that we take the null space, L, of B (i.e. B*L=0) as
             % reduced set of basis vectors, q = L*q_full where q_full
@@ -202,28 +190,44 @@ classdef FE_EulerBernoulliBeam < MechanicalSystem
             switch BCs
                 case 'clamped-clamped'
                     L = L(:,3:end-2);
+                    K = K(3:end-2,3:end-2);
+                    M = M(3:end-2,3:end-2);
                 case 'clamped-pinned'
                     L = L(:,[3:end-2 end]);
+                    K = K([3:end-2 end],[3:end-2 end]);
+                    M = M([3:end-2 end],[3:end-2 end]);
                 case 'clamped-free'
                     L = L(:,3:end);
+                    K = K(3:end,3:end);
+                    M = M(3:end,3:end);
                 case 'pinned-clamped'
                     L = L(:,2:end-2);
+                    K = K(2:end-2,2:end-2);
+                    M = M(2:end-2,2:end-2);
                 case 'pinned-pinned'
                     L = L(:,[2:end-2 end]);
+                    K = K([2:end-2 end],[2:end-2 end]);
+                    M = M([2:end-2 end],[2:end-2 end]);
                 case 'pinned-free'
                     L = L(:,2:end);
+                    K = K(2:end,2:end);
+                    M = M(2:end,2:end);
                 case 'free-clamped'
                     L = L(:,1:end-2);
+                    K = K(1:end-2,1:end-2);
+                    M = M(1:end-2,1:end-2);
                 case 'free-pinned'
                     L = L(:,[1:end-2 end]);
+                    K = K([1:end-2 end],[1:end-2 end]);
+                    M = M([1:end-2 end],[1:end-2 end]);
                 case 'free-free'
                     % Nothing to constrain
                 otherwise
                     error('Not implemented yet.');
             end
-            % Apply constraints
-            K = L'*K*L;
-            M = L'*M*L;
+%             % Apply constraints
+%             K = L'*K*L;
+%             M = L'*M*L;
         end
     end
 end
