@@ -118,10 +118,11 @@ qscl = max(abs(qs(nnorm)));
 
 % Perform continuation on Om
 ds = .02;
+Sopt.eps = 1e-7;
 Np = 1; % we seek period-one solutions
 X_shoot = solve_and_continue(x0,...
     @(X) shooting_residual(X,oscillator,Ntd,Np,analysis,qscl,[],inorm),...
-    log10qsinorm_s,log10qsinorm_e,ds);
+    log10qsinorm_s,log10qsinorm_e,ds,Sopt);
 
 % Interpret solver output
 om_shoot = X_shoot(end-2,:);
