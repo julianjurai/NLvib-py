@@ -72,8 +72,13 @@ switch lower(analysis_type)
         % Excitation frequency
         Om  =  X(end)	;
         dOm = dX(end,:)	;
+        
         % Scaling of dynamic force equilibrium
-        fscl = 1;
+        if length(varargin)<2 || isempty(varargin{2})
+            fscl = 1;
+        else
+            fscl = varargin{2};
+        end
     case {'nma','nonlinear modal analysis'}
         % Nonlinear modal analysis:  X = [Psi;Om;del;log10a]
         
