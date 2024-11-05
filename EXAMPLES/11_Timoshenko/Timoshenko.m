@@ -24,7 +24,7 @@
 % poor performance. Apparently, the main problem was that they did not use
 % appropriate values for the DSCALE parameter and did not make use of the
 % dynamicDSCALE option. The sensitivity to those parameters is well-explained
-% in the manual and the book.
+% in the manual and the book. Details are discussed in [2].
 %
 % We acknowledge that it may require experience to set parameters of 
 % numerical tools properly. We are always happy to try to help if you 
@@ -34,6 +34,7 @@
 % ode15s.
 % 
 % [1] https://doi.org/10.1016/j.jsv.2020.115640
+% [2] https://doi.org/10.1016/j.jsv.2024.118808
 %========================================================================
 % This file is part of NLvib.
 % 
