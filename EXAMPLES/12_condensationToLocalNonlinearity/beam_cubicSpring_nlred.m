@@ -22,9 +22,10 @@
 % We have implemented the particular variant of the exact condensation 
 % described in the HB book (Section 4.3), and is part of the Homework 
 % Problem F (Section 5). With this, the computation effort does not seem
-% intractable.
+% intractable. Details are discussed in [2].
 % 
 % [1] https://doi.org/10.1016/j.jsv.2020.115640
+% [2] https://doi.org/10.1016/j.jsv.2024.118808
 %========================================================================
 % This file is part of NLvib.
 % 
