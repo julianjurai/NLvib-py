@@ -26,26 +26,6 @@
 % that the reduced matrices are obtained by the inner product with the 
 % matrix 'T'. This does not hold for the mass-deficient methods 'CBMB' and
 % 'MCN'.
-% 
-% Within the NLstep tool, either 1D or 3D contact can be modeled. In either
-% case, it is presumed that the contact boundary coordinates are in the
-% appropriate coordinate system, as specified in the following. In the case
-% of normal contact, an increasing coordinate means opening contact (in
-% the case of tangential contact it does not matter). In the case of 3D
-% contact, the coordinates are grouped in such a way that the normal
-% coordinate is followed by the two orthogonal tangential ones. If contact
-% is to be modeled between two finite element interfaces, it is presumed
-% that an appropriate transformation to relative displacements has been
-% applied (which implies a small sliding assumption). To this end, one side 
-% of the contact interface is to be selected as dependent and the other as 
-% independent. The (absolute) displacements of the independent nodes are 
-% included into the set of remaining coordinates. Interpolation is 
-% necessary on the independent side to treat non-conforming meshes. This 
-% corresponds to a node-to-surface formulation. The contact law is 
-% specified in the 'nonlinear_elements' structure. The contact stress is 
-% evaluated at each dependent node, and the consistent nodal forces are 
-% obtained by multiplying this with the area associated to the respective 
-% node (assuming elements with linear shape functions here).
 %
 % [1] https://github.com/maltekrack/
 % [2] https://doi.org/10.1016/j.compstruc.2021.106698
