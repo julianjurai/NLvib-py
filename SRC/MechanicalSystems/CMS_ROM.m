@@ -19,7 +19,7 @@
 % columns of the matrix 'T'. The reduced stiffness, damping and mass
 % matrices are 'M', 'D', and 'K', respectively.
 % 
-% The primary purpose of this class model reduction in the context of
+% The primary purpose of this class is model reduction in the context of
 % dynamic contact simulation with the tool NLstep [1]. This is where the
 % massless-boundary methods 'CBMB' and 'MCN' are particularly useful [2].
 % Note that 'CB' and 'RU' are Galerkin-consistent methods in the sense 
