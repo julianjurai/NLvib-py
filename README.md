@@ -1,5 +1,5 @@
 # NLvib
-NLvib is a Matlab tool for nonlinear vibration analysis.
+NLvib is an academic Matlab tool for nonlinear vibration analysis.
 
 An overview of its capabilities, included examles, the monograph on Harmonic Balance, and some further presentation material can be found on https://www.ila.uni-stuttgart.de/nlvib/.
 
