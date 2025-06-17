@@ -3,7 +3,7 @@ NLvib is a Matlab tool for nonlinear vibration analysis.
 
 An overview of its capabilities, included examles, the monograph on Harmonic Balance, and some further presentation material can be found on https://www.ila.uni-stuttgart.de/nlvib/.
 
-Please also see the manual in the SRC folder.
+Please also see the manual in the DOC folder.
 
 We always appreciate any kind of feedback you may have. If you encounter any problems, which you cannot solve with the manual or the book, please do not hesitate to contact the authors of this code (Johann Gross and Malte Krack; for contact details see headers or https://www.ila.uni-stuttgart.de/nlvib/).
 
