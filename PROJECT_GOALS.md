@@ -65,13 +65,41 @@ This project is a Python port of **NLvib**, a MATLAB toolbox for nonlinear vibra
 - `pyproject.toml`-based build (PEP 517/518).
 - semver versioning from v0.1.0.
 
+### G10 — Visualization (Plots, Charts, Simulations)
+
+The original MATLAB toolbox produces a specific set of figures for each example.
+Every plot type must be reproducible in Python with visually equivalent output.
+
+**Plot types produced by the MATLAB examples:**
+
+| Plot | Description | MATLAB source |
+|------|-------------|---------------|
+| Frequency Response Function (FRF) | Amplitude vs. excitation frequency Ω, with stable/unstable branch coloring | All FRF examples |
+| Backbone curve (NMA) | Frequency vs. amplitude for nonlinear normal modes — no excitation | NMA examples |
+| Time-domain simulation | Displacement/velocity vs. time at steady state | Shooting method examples |
+| Phase portrait | q̇ vs. q trajectory in phase space | Shooting examples |
+| Stability diagram | Floquet multipliers on complex unit circle | Continuation examples |
+| Mode shape | Spatial displacement profile for FE beam/rod examples | Beam/rod examples |
+| Convergence plot | Residual norm vs. continuation step / Newton iteration | Debug/diagnostic |
+| Harmonic content | Bar chart of harmonic amplitudes Q_1, Q_3, Q_5 ... | HB examples |
+
+**Requirements:**
+- All plots produced by `matplotlib` (default) with an optional `plotly` backend for interactive notebooks.
+- Each plot function accepts a `ContinuationResult` and returns a `matplotlib.figure.Figure` — no side effects, no `plt.show()` in library code.
+- Stable branches rendered in one color, unstable in another (dashed or different color), matching MATLAB convention.
+- Visual comparison fixtures: PNG snapshots of MATLAB-generated plots stored in `tests/fixtures/plots/` for side-by-side review. Not used in automated assertions — used for human QA.
+- Every notebook renders all plots inline.
+
+**Module**: `src/nlvib/visualization/`
+
 ---
 
 ## Success Criteria (Definition of Done for v1.0)
 
 - [ ] All 12 MATLAB examples reproduced in Python with ≤ 1e-6 relative error
+- [ ] All plot types from G10 implemented and visually match MATLAB outputs
 - [ ] Full test suite passing in CI (unit + integration + validation)
-- [ ] All 12 Jupyter notebooks run clean
+- [ ] All 12 Jupyter notebooks run clean with all plots rendered
 - [ ] API reference site deployed
 - [ ] `mypy --strict` passes on public API
 - [ ] README, attribution, and license in place

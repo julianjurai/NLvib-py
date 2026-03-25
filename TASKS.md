@@ -26,6 +26,7 @@ Tier 0 (independent)
   T-02  Utility functions (FFT transforms, norms, scaling)
   T-03  IO parsers (CalculiX FRD/mesh reader)
   T-04  MATLAB fixture generator spec + reference outputs
+  T-27  Visualization module                 [no deps — pure matplotlib wrappers]
 
 Tier 1 (needs Tier 0)
   T-05  Base MechanicalSystem class          [needs: T-01]
@@ -43,15 +44,15 @@ Tier 2 (needs Tier 1)
 Tier 3 (needs Tier 2)
   T-14  Arc-length continuation solver       [needs: T-12, T-13]
 
-Tier 4 (needs Tier 3)
-  T-15  Example: 01 Duffing oscillator       [needs: T-14, T-06]
-  T-16  Example: 02 Two-DOF cubic spring     [needs: T-14, T-07]
-  T-17  Example: 03 Two-DOF unilateral spring[needs: T-14, T-07]
-  T-18  Example: 04 Two-DOF tanh friction    [needs: T-14, T-07]
-  T-19  Example: 05 Geometric nonlinearity   [needs: T-14, T-07]
-  T-20  Example: 06 Multi-DOF multi-NL       [needs: T-14, T-07]
-  T-21  Example: 07 Beam tanh friction       [needs: T-14, T-08]
-  T-22  Example: 08 Beam cubic spring NM     [needs: T-14, T-08]
+Tier 4 (needs Tier 3 + T-27)
+  T-15  Example: 01 Duffing oscillator       [needs: T-14, T-06, T-27]
+  T-16  Example: 02 Two-DOF cubic spring     [needs: T-14, T-07, T-27]
+  T-17  Example: 03 Two-DOF unilateral spring[needs: T-14, T-07, T-27]
+  T-18  Example: 04 Two-DOF tanh friction    [needs: T-14, T-07, T-27]
+  T-19  Example: 05 Geometric nonlinearity   [needs: T-14, T-07, T-27]
+  T-20  Example: 06 Multi-DOF multi-NL       [needs: T-14, T-07, T-27]
+  T-21  Example: 07 Beam tanh friction       [needs: T-14, T-08, T-27]
+  T-22  Example: 08 Beam cubic spring NM     [needs: T-14, T-08, T-27]
 
 Tier 5 (needs Tier 4)
   T-23  Jupyter notebooks (one per example)  [needs: T-15 through T-22]
@@ -117,6 +118,37 @@ Tier 5 (needs Tier 4)
   - Fixture generation script: `tools/generate_fixtures.m` (MATLAB script for reproducibility)
 - **Notes**: Fixtures are the ground truth for all validation tests. Generated once from MATLAB, committed to repo. If MATLAB is unavailable, document analytical solutions for T-15 (Duffing) as backup.
 - **Acceptance**: All fixture files present and documented
+
+---
+
+### T-27 — Visualization Module
+- **Status**: `ready`
+- **Module**: `src/nlvib/visualization/`
+- **Deliver**:
+  - `plot_frf(result, dof=0, harmonic=1)` → `Figure`
+    Frequency response: amplitude vs Ω. Stable branches solid, unstable dashed. Matches MATLAB FRF plots.
+  - `plot_backbone(result)` → `Figure`
+    Backbone curve for NMA: frequency vs modal amplitude.
+  - `plot_time_series(t, q, dof=0)` → `Figure`
+    Steady-state time domain displacement and velocity.
+  - `plot_phase_portrait(t, q, dq, dof=0)` → `Figure`
+    Phase portrait q̇ vs q.
+  - `plot_floquet(multipliers)` → `Figure`
+    Floquet multipliers on the complex plane with unit circle. Stability indicator.
+  - `plot_mode_shape(nodes, displacement, title="")` → `Figure`
+    Spatial mode shape for FE beam/rod models.
+  - `plot_harmonic_content(Q_harmonics, omega)` → `Figure`
+    Bar chart of harmonic amplitudes Q_1, Q_3, Q_5 ...
+  - `plot_convergence(residuals)` → `Figure`
+    Residual norm vs continuation step or Newton iteration.
+- **Design rules**:
+  - All functions return `matplotlib.figure.Figure` — no `plt.show()`, no global state
+  - Accept optional `ax=` parameter to plot into an existing axes
+  - Accept optional `backend="matplotlib"|"plotly"` (plotly is optional dep)
+  - Stable/unstable branch coloring driven by a `stability` boolean array on the result
+- **Visual fixtures**: MATLAB-generated PNG snapshots stored in `tests/fixtures/plots/` for human comparison (not automated assertion)
+- **Tests**: `tests/unit/test_visualization.py` — smoke tests that figures are created without error; check axis labels, legend entries
+- **Acceptance**: All 8 plot functions implemented; smoke tests pass; visual match to MATLAB PNGs confirmed by human review
 
 ---
 
@@ -246,8 +278,26 @@ Tier 5 (needs Tier 4)
 - **Status**: `todo` (all)
 - **Deps**: See dependency tier above
 - **Module**: `examples/<name>/run.py`
-- **Deliver**: Runnable script producing plots matching MATLAB examples
-- **Acceptance**: All plots match MATLAB reference figures; all fixture tolerances met
+- **Deliver**: Runnable script that:
+  1. Runs the full continuation/analysis
+  2. Produces all required plots via `nlvib.visualization`
+  3. Saves plots to `examples/<name>/output/` as PNG
+  4. Prints a summary table of key results (peak amplitude, resonance frequency)
+
+**Required plots per example:**
+
+| Example | Plots required |
+|---------|---------------|
+| 01 Duffing | FRF (HB + shooting overlay), harmonic content, time series at peak |
+| 02 Two-DOF cubic | FRF (both DOFs), harmonic content |
+| 03 Two-DOF unilateral | FRF, phase portrait (impact dynamics) |
+| 04 Two-DOF tanh friction NM | Backbone curve, FRF |
+| 05 Geometric nonlinearity | FRF (hardening/softening branch) |
+| 06 Multi-DOF multi-NL | FRF all DOFs, convergence plot |
+| 07 Beam tanh friction | FRF, mode shape at resonance |
+| 08 Beam cubic spring NM | Backbone curve, mode shape |
+
+- **Acceptance**: All plots saved without error; numerical results match MATLAB fixtures ≤ 1e-6; visual match to MATLAB PNGs confirmed by human review
 
 ---
 
@@ -307,4 +357,15 @@ Tier 5 (needs Tier 4)
 - `PROJECT_GOALS.md`, `AGENTS.md`, `TASKS.md` written
 - All T-00 through T-04 set to `ready`; remainder `todo`
 - Skeleton `src/nlvib/` structure created (will be cleaned up before Tier 0 work begins)
-- **Next**: PM to assign T-01, T-02, T-03, T-04, T-25 in parallel (all Tier 0 / independent)
+- **Next**: PM to assign T-01, T-02, T-03, T-04, T-25, T-27 in parallel (all Tier 0 / independent)
+
+### Session 1 — Spec updates
+- Added G10 (Visualization) to PROJECT_GOALS.md — full inventory of all MATLAB plot types
+- Added T-27 (Visualization module) to TASKS.md — `src/nlvib/visualization/`, 8 plot functions
+- Added T-27 as dependency for all Tier 4 example tasks (T-15 through T-22)
+- Expanded example task specs to list required plots per example
+- Added OpenAI integration to AGENTS.md (o3 assumption testing, GPT-4o cross-validation)
+- Added MATLAB source download tooling: `tools/fetch_matlab_source.sh`, `tools/generate_fixtures.py`
+- Added `tools/openai_validator.py`
+- Claude session startup instructions added to README.md
+- **Next**: PM to assign T-01, T-02, T-03, T-04, T-25, T-27 in parallel (all Tier 0 / independent)
