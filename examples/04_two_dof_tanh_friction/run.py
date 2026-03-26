@@ -60,15 +60,15 @@ from nlvib.visualization.plots import plot_backbone
 # Named parameters
 # ---------------------------------------------------------------------------
 
-MASSES = [1.0, 1.0]
-STIFFNESSES = [1.0, 0.5, 0.0]  # open right end
-DAMPINGS = [0.0, 0.0, 0.0]     # no linear damping for NMA
+MASSES = [0.02, 1.0]            # MATLAB: [1.0, 1.0] (mi=[0.02,1])
+STIFFNESSES = [0.0, 40.0, 600.0]  # MATLAB: [1.0, 0.5, 0.0] (ki=[0,40,600])
+DAMPINGS = [0.0, 0.0, 0.0]     # no linear damping for NMA (unchanged)
 
-FRICTION_F0: float = 0.3
-FRICTION_C: float = 10.0
+FRICTION_F0: float = 5.0        # MATLAB: 0.3 (muN=5)
+FRICTION_C: float = 20.0        # MATLAB: 10.0 (c=1/eps=1/0.05=20)
 FRICTION_DOF: int = 0
 
-N_HARMONICS: int = 5
+N_HARMONICS: int = 21           # MATLAB: 5 (H=21)
 
 # Forced analysis parameters
 FORCE_AMPLITUDE: float = 0.05

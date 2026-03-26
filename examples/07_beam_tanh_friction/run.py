@@ -60,24 +60,24 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 # ---------------------------------------------------------------------------
 # System definition
 # ---------------------------------------------------------------------------
-N_ELEMENTS = 10
-L_BEAM     = 1.0
-E_MOD      = 2.1e11
-I_AREA     = 1e-8
+N_ELEMENTS = 19                  # MATLAB: 10 (n_nodes=20 → n_elements=19)
+L_BEAM     = 0.7                 # MATLAB: 1.0 (len=0.7)
+E_MOD      = 2.05e11             # MATLAB: 2.1e11 (E=2.05e11)
+I_AREA     = 3.201e-9            # MATLAB: 1e-8 (I=0.014*0.014^3/12≈3.201e-9)
 RHO        = 7800.0
-A_SECT     = 1e-4
+A_SECT     = 1.96e-4             # MATLAB: 1e-4 (A=0.014*0.014=1.96e-4)
 BC         = "clamped-free"
 
-# Nonlinearity at midpoint node 5
-FRICTION_F0 = 5.0
-FRICTION_C  = 100.0
-FRICTION_NODE = 5
+# Nonlinearity at midpoint node 10 (midpoint of 19 elements)
+FRICTION_F0 = 1.5                # MATLAB: 5.0 (muN=1.5)
+FRICTION_C  = 1666667.0          # MATLAB: 100.0 (c=1/eps=1/6e-7≈1666667)
+FRICTION_NODE = 10               # MATLAB: 5 (midpoint of 19 elements)
 
-# Excitation at tip (node 10)
+# Excitation at tip (node 19)
 FORCE_AMP   = 10.0
-FORCE_NODE  = N_ELEMENTS  # = 10
+FORCE_NODE  = N_ELEMENTS         # = 19 (MATLAB: 10)
 
-N_HARMONICS = 3
+N_HARMONICS = 7                  # MATLAB: 3 (H=7)
 OMEGA_MIN   = 150.0
 OMEGA_MAX   = 250.0
 
@@ -155,6 +155,7 @@ def residual_fn(Q: np.ndarray, omega: float) -> tuple[np.ndarray, np.ndarray]:
 
 solver = ContinuationSolver()
 opts = ContinuationOptions(
+        verbose=True,
     ds_initial=0.5,
     ds_min=1e-4,
     ds_max=5.0,

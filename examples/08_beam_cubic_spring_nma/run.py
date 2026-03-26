@@ -83,18 +83,18 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 # ---------------------------------------------------------------------------
 # Full beam parameters
 # ---------------------------------------------------------------------------
-N_ELEMENTS  = 10
-L_BEAM      = 1.0
-E_MOD       = 2.1e11
-I_AREA      = 1e-8
+N_ELEMENTS  = 19               # MATLAB: 10 (n_nodes=20 → n_elements=19)
+L_BEAM      = 0.7              # MATLAB: 1.0 (len=0.7)
+E_MOD       = 2.05e11          # MATLAB: 2.1e11 (E=2.05e11)
+I_AREA      = 3.201e-9         # MATLAB: 1e-8 (I=0.014*0.014^3/12≈3.201e-9)
 RHO         = 7800.0
-A_SECT      = 1e-4
+A_SECT      = 1.96e-4          # MATLAB: 1e-4 (A=0.014^2=1.96e-4)
 BC          = "clamped-free"
 
-K3_CUBIC    = 1e12
-CUBIC_NODE  = 5       # midpoint node
+K3_CUBIC    = 6e9              # MATLAB: 1e12 (knl=6e9)
+CUBIC_NODE  = 19               # MATLAB: 5 (free end node = N_ELEMENTS = 19)
 
-N_HARMONICS = 3       # retained harmonics (SDOF → n_total = 7, tractable)
+N_HARMONICS = 5                # MATLAB: 3 (H=5)
 
 # ---------------------------------------------------------------------------
 # Build the full beam and extract the first mass-normalised mode shape
@@ -214,6 +214,7 @@ OMEGA_MAX_BACKBONE = omega1_linear * 2.0   # trace to 2x linear frequency
 
 solver = ContinuationSolver()
 opts = ContinuationOptions(
+        verbose=True,
     ds_initial=0.01,
     ds_min=1e-8,
     ds_max=2.0,

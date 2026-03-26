@@ -1,17 +1,17 @@
 """
 Example 05 — Geometric Nonlinearity (hardening FRF).
 
-2-DOF chain of oscillators with cubic (geometric) stiffening on both DOFs.
+2-DOF system with geometric (polynomial) stiffness nonlinearity in modal coordinates.
+Matches MATLAB 06_twoSprings_geometricNonlinearity.m.
 Demonstrates hardening-type frequency response via HB + arc-length continuation.
 
-System parameters
+System parameters (MATLAB: 06_twoSprings_geometricNonlinearity.m)
 -----------------
-masses       = [1.0, 1.0]
-stiffnesses  = [0.5, 1.0, 0.5]   (boundary + inter-mass + boundary)
-dampings     = [0.01, 0.01, 0.01]
-Nonlinear    : cubic_spring(k3=2.0) at DOF 0 AND DOF 1
-Excitation   : F = 0.05 at DOF 0, harmonic 1
-Frequency    : omega in [0.4, 1.6] rad/s, n_harmonics = 3
+om1=1.13, om2=2, zt1=1e-3, zt2=5e-3
+M=eye(2), K=diag([om1^2, om2^2]), D=diag([2*zt1*om1, 2*zt2*om2])
+Polynomial nonlinearity on both DOFs (geometric coupling)
+Excitation   : F = 1e-3 at DOF 0, harmonic 1
+Frequency    : omega in [0.8, 1.6] rad/s, n_harmonics = 7
 
 Outputs
 -------
@@ -41,8 +41,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT / "src"))
 
-from nlvib.systems.oscillators import ChainOfOscillators
-from nlvib.nonlinearities.elements import cubic_spring
+from nlvib.systems.base import MechanicalSystem
+from nlvib.nonlinearities.elements import polynomial_stiffness
 from nlvib.solvers.harmonic_balance import hb_residual
 from nlvib.continuation.solver import ContinuationSolver, ContinuationOptions
 
@@ -54,23 +54,54 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # System definition
+# MATLAB: 06_twoSprings_geometricNonlinearity.m
+# om1=1.13, om2=2, zt1=1e-3, zt2=5e-3
+# M=eye(2), K=diag([om1^2,om2^2]), D=diag([2*zt1*om1, 2*zt2*om2])
+# NOT a chain of oscillators — diagonal (uncoupled modal) matrices
 # ---------------------------------------------------------------------------
-MASSES       = [1.0, 1.0]
-STIFFNESSES  = [0.5, 1.0, 0.5]
-DAMPINGS     = [0.01, 0.01, 0.01]
-K3           = 2.0
-FORCE_AMP    = 0.05
-OMEGA_MIN    = 0.4
-OMEGA_MAX    = 1.6
-N_HARMONICS  = 3
+om1 = 1.13                       # MATLAB: first modal frequency
+om2 = 2.0                        # MATLAB: second modal frequency
+zt1 = 1e-3                       # MATLAB: first modal damping ratio
+zt2 = 5e-3                       # MATLAB: second modal damping ratio
 
-system = ChainOfOscillators(
-    masses=MASSES,
-    stiffnesses=STIFFNESSES,
-    dampings=DAMPINGS,
-)
-system.add_nonlinear_element(cubic_spring(k3=K3, dof_index=0))
-system.add_nonlinear_element(cubic_spring(k3=K3, dof_index=1))
+M_mat = np.diag([1.0, 1.0])
+K_mat = np.diag([om1**2, om2**2])
+D_mat = np.diag([2 * zt1 * om1, 2 * zt2 * om2])
+
+FORCE_AMP    = 1e-3              # MATLAB: exc_lev=[3e-4,5e-4,1e-3,3e-3]; use single level 1e-3
+OMEGA_MIN    = 0.8               # MATLAB: Om_e=0.8 (sweeps down from 1.6; Python sweeps up)
+OMEGA_MAX    = 1.6               # MATLAB: Om_s=1.6
+N_HARMONICS  = 7                 # MATLAB: H=7 (was 3)
+
+system = MechanicalSystem(M_mat, D_mat, K_mat)
+
+# Polynomial nonlinearity for DOF 0:
+# fnl0 = 3*om1^2/2*q0^2 + om1^2/2*q1^2 + om2^2*q0*q1
+#       + (om1^2+om2^2)/2*q0^3 + (om1^2+om2^2)/2*q0*q1^2
+# dof_indices=[0,1] → q_local = [q0, q1]
+_exp0 = np.array([[2, 0], [0, 2], [1, 1], [3, 0], [1, 2]], dtype=np.intp)
+_coeff0 = np.array([
+    3 * om1**2 / 2,
+    om1**2 / 2,
+    om2**2,
+    (om1**2 + om2**2) / 2,
+    (om1**2 + om2**2) / 2,
+])
+system.add_nonlinear_element(polynomial_stiffness(_exp0, _coeff0, np.array([0, 1], dtype=np.intp)))
+
+# Polynomial nonlinearity for DOF 1:
+# fnl1 = 3*om2^2/2*q1^2 + om2^2/2*q0^2 + om1^2*q0*q1
+#       + (om1^2+om2^2)/2*q1^3 + (om1^2+om2^2)/2*q0^2*q1
+# dof_indices=[1,0] → q_local = [q1, q0]
+_exp1 = np.array([[2, 0], [0, 2], [1, 1], [3, 0], [1, 2]], dtype=np.intp)
+_coeff1 = np.array([
+    3 * om2**2 / 2,
+    om2**2 / 2,
+    om1**2,
+    (om1**2 + om2**2) / 2,
+    (om1**2 + om2**2) / 2,
+])
+system.add_nonlinear_element(polynomial_stiffness(_exp1, _coeff1, np.array([1, 0], dtype=np.intp)))
 
 excitation = {"dof": 0, "amplitude": FORCE_AMP, "harmonic": 1}
 
@@ -109,6 +140,7 @@ def residual_fn(Q: np.ndarray, omega: float) -> tuple[np.ndarray, np.ndarray]:
 
 solver = ContinuationSolver()
 opts = ContinuationOptions(
+        verbose=True,
     ds_initial=0.01,
     ds_min=1e-6,
     ds_max=0.05,

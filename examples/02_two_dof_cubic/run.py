@@ -1,19 +1,20 @@
 """
 Example 02 — Two-DOF chain of oscillators with cubic spring nonlinearity.
 
-System parameters (Krack & Gross 2019, §5):
-    masses      = [1.0, 1.0]
-    stiffnesses = [1.0, 0.5, 1.0]   (left boundary, inter-mass, right boundary)
-    dampings    = [0.01, 0.01, 0.01]
-    Nonlinearity: cubic spring k3=1.0 at DOF 0
-    Excitation:   F=0.05 at DOF 0 (cosine, harmonic 1)
-    Frequency range: omega in [0.3, 1.5] rad/s
-    n_harmonics = 3
+Matches MATLAB NLvib demo: twoDOFoscillator_cubicSpring.m
+
+System parameters:
+    masses      = [1.0, 0.05]
+    stiffnesses = [1.0, 0.0453, 0.0]
+    dampings    = [0.002, 0.013, 0.0]
+    Nonlinearities: cubic spring k3=1.0 at DOF 0,
+                    inter-DOF cubic spring k3=0.0042 (force_direction=[1;-1])
+    Excitation:   F=0.11 at DOF 0 (cosine, harmonic 1)
+    Frequency range: omega in [0.8, 1.4] rad/s
+    n_harmonics = 7
 
 Outputs (saved to examples/02_two_dof_cubic/output/):
-    frf_dof0.png        — FRF amplitude vs. omega for DOF 0
-    frf_dof1.png        — FRF amplitude vs. omega for DOF 1
-    harmonic_content.png — Harmonic content at the peak response point
+    frequency_response.png — a_rms vs omega (matches MATLAB figure)
 
 Summary printed to stdout:
     Peak amplitudes (DOF 0, DOF 1), resonance frequencies.
@@ -23,11 +24,11 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from dataclasses import dataclass
 
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")  # non-interactive backend for file output
+import matplotlib.pyplot as plt
 
 # ---------------------------------------------------------------------------
 # Make sure the installed package (or src layout) is importable.
@@ -37,146 +38,76 @@ if str(_repo_root / "src") not in sys.path:
     sys.path.insert(0, str(_repo_root / "src"))
 
 from nlvib.systems.oscillators import ChainOfOscillators
-from nlvib.nonlinearities.elements import cubic_spring
+from nlvib.nonlinearities.elements import cubic_spring, polynomial_stiffness
 from nlvib.solvers.harmonic_balance import hb_residual
 from nlvib.continuation.solver import ContinuationSolver, ContinuationOptions
-from nlvib.visualization.plots import plot_frf, plot_harmonic_content
 
 # ---------------------------------------------------------------------------
 # Constants — system parameters
 # ---------------------------------------------------------------------------
-MASSES: list[float] = [1.0, 1.0]
-STIFFNESSES: list[float] = [1.0, 0.5, 1.0]
-DAMPINGS: list[float] = [0.01, 0.01, 0.01]
+MASSES: list[float] = [1.0, 0.05]          # MATLAB: [1.0, 1.0]
+STIFFNESSES: list[float] = [1.0, 0.0453, 0.0]  # MATLAB: [1.0, 0.5, 1.0]
+DAMPINGS: list[float] = [0.002, 0.013, 0.0]    # MATLAB: [0.01, 0.01, 0.01]
 CUBIC_K3: float = 1.0
 CUBIC_DOF: int = 0
-EXCITATION_AMPLITUDE: float = 0.05
+EXCITATION_AMPLITUDE: float = 0.11        # MATLAB: 0.05
 EXCITATION_DOF: int = 0
-N_HARMONICS: int = 3
-OMEGA_START: float = 0.3
-OMEGA_END: float = 1.5
+N_HARMONICS: int = 7                       # MATLAB: 3
+OMEGA_START: float = 0.8                   # MATLAB: 0.3
+OMEGA_END: float = 1.4                     # MATLAB: 1.5
 
 OUTPUT_DIR = Path(__file__).parent / "output"
 
 
 # ---------------------------------------------------------------------------
-# Helper: wrap ContinuationResult into the protocol expected by plot_frf
+# Helpers
 # ---------------------------------------------------------------------------
 
-@dataclass
-class FRFResult:
-    """Adapter that satisfies the ContinuationResult protocol in plots.py.
+def _compute_a_rms(solutions: np.ndarray, n_dof: int, n_harmonics: int) -> tuple[np.ndarray, np.ndarray]:
+    """Compute omega and a_rms matching MATLAB's ``a_rms_HB`` formula.
 
-    Attributes
-    ----------
-    omega:
-        1-D array of angular frequencies (rad/s), shape (n_points,).
-    amplitude:
-        Array of amplitudes, shape (n_dof, n_points).
-    stability:
-        Boolean array, shape (n_points,).  True = potentially unstable.
-    """
-
-    omega: np.ndarray
-    amplitude: np.ndarray
-    stability: np.ndarray
-
-
-def _extract_frf(
-    solutions: np.ndarray,
-    stability: np.ndarray,
-    n_dof: int,
-    n_harmonics: int,
-) -> FRFResult:
-    """Extract omega and peak-harmonic amplitudes from continuation solutions.
-
-    The augmented state vector layout is [Q; omega] where Q has length
-    n_dof * (2*H + 1).  The amplitude of DOF i at harmonic h is:
-
-        A_i^h = sqrt(Q_{c,h,i}^2 + Q_{s,h,i}^2)
-
-    For the FRF we report the fundamental (h=1) amplitude.
-
-    Parameters
-    ----------
-    solutions:
-        Shape (n_steps, n_dof*(2H+1) + 1).  Last column is omega.
-    stability:
-        Shape (n_steps,).
-    n_dof, n_harmonics:
-        System dimensions.
+    MATLAB: ``a_rms_HB = sqrt(sum(Q_HB(1:2:end,:).^2))/sqrt(2)``
+    which sums all harmonic coefficients of DOF 0 (every other row in the
+    interleaved layout), giving RMS displacement of DOF 0.
 
     Returns
     -------
-    FRFResult
-        omega (n_steps,), amplitude (n_dof, n_steps), stability (n_steps,).
+    omega : ndarray, shape (n_steps,)
+    a_rms : ndarray, shape (n_steps,)
     """
+    omega = solutions[:, -1]
+    Q_all = solutions[:, :-1]  # (n_steps, n_dof*(2H+1))
+    # Reshape to (n_steps, 2H+1, n_dof) then take DOF 0
+    Q_dof0 = Q_all.reshape(Q_all.shape[0], 2 * n_harmonics + 1, n_dof)[:, :, 0]  # (n_steps, 2H+1)
+    a_rms = np.sqrt(np.sum(Q_dof0 ** 2, axis=1)) / np.sqrt(2)
+    return omega, a_rms
+
+
+def _extract_h1_amplitude(solutions: np.ndarray, n_dof: int, n_harmonics: int) -> np.ndarray:
+    """Return H1 amplitude for each DOF at each step, shape (n_dof, n_steps)."""
     n_steps = solutions.shape[0]
-    omega_arr = solutions[:, -1].copy()  # last column is lambda = omega
-
-    # Amplitude at each step: sqrt(Q_c1^2 + Q_s1^2) for each DOF
-    # Q layout: [Q_0 (n_dof), Q_c1 (n_dof), Q_s1 (n_dof), Q_c2 (n_dof), Q_s2 (n_dof), ...]
-    amplitude = np.zeros((n_dof, n_steps), dtype=np.float64)
-    for i_step in range(n_steps):
-        Q = solutions[i_step, :-1]  # shape (n_dof * (2H+1),)
-        for i_dof in range(n_dof):
-            # Cosine block for harmonic h: block index 2h-1, starting at (2h-1)*n_dof + i_dof
-            # Sine block for harmonic h:   block index 2h,   starting at 2h*n_dof + i_dof
-            amp_dof = 0.0
-            for h in range(1, n_harmonics + 1):
-                c_idx = (2 * h - 1) * n_dof + i_dof
-                s_idx = 2 * h * n_dof + i_dof
-                amp_h = float(np.sqrt(Q[c_idx] ** 2 + Q[s_idx] ** 2))
-                if h == 1:  # report fundamental for FRF
-                    amp_dof = amp_h
-            amplitude[i_dof, i_step] = amp_dof
-
-    return FRFResult(omega=omega_arr, amplitude=amplitude, stability=stability.copy())
+    amp = np.zeros((n_dof, n_steps))
+    Q_all = solutions[:, :-1]
+    for i_dof in range(n_dof):
+        c_idx = (2 * 1 - 1) * n_dof + i_dof
+        s_idx = 2 * 1 * n_dof + i_dof
+        amp[i_dof, :] = np.sqrt(Q_all[:, c_idx] ** 2 + Q_all[:, s_idx] ** 2)
+    return amp
 
 
 def _extract_harmonics_at_peak(
-    solutions: np.ndarray,
-    n_dof: int,
-    n_harmonics: int,
-    dof: int = 0,
+    solutions: np.ndarray, n_dof: int, n_harmonics: int, dof: int = 0
 ) -> tuple[np.ndarray, float]:
-    """Extract per-harmonic amplitudes at the peak response step for a given DOF.
-
-    Parameters
-    ----------
-    solutions:
-        Shape (n_steps, n_dof*(2H+1) + 1).
-    n_dof, n_harmonics:
-        System dimensions.
-    dof:
-        DOF index at which to measure peak.
-
-    Returns
-    -------
-    Q_harmonics : ndarray, shape (n_harmonics,)
-        Amplitude of each harmonic (h=1..H) at the peak step.
-    omega_peak : float
-        Frequency at the peak step.
-    """
-    # Compute fundamental amplitude for the specified DOF at each step
-    n_steps = solutions.shape[0]
-    amp_fund = np.zeros(n_steps, dtype=np.float64)
-    for i_step in range(n_steps):
-        Q = solutions[i_step, :-1]
-        c_idx = (2 * 1 - 1) * n_dof + dof
-        s_idx = 2 * 1 * n_dof + dof
-        amp_fund[i_step] = float(np.sqrt(Q[c_idx] ** 2 + Q[s_idx] ** 2))
-
-    peak_idx = int(np.argmax(amp_fund))
+    """Per-harmonic amplitudes at the peak H1 step for the given DOF."""
+    amp_h1 = _extract_h1_amplitude(solutions, n_dof, n_harmonics)[dof]
+    peak_idx = int(np.argmax(amp_h1))
     Q_peak = solutions[peak_idx, :-1]
     omega_peak = float(solutions[peak_idx, -1])
-
-    Q_harmonics = np.zeros(n_harmonics, dtype=np.float64)
+    Q_harmonics = np.zeros(n_harmonics)
     for h in range(1, n_harmonics + 1):
         c_idx = (2 * h - 1) * n_dof + dof
         s_idx = 2 * h * n_dof + dof
         Q_harmonics[h - 1] = float(np.sqrt(Q_peak[c_idx] ** 2 + Q_peak[s_idx] ** 2))
-
     return Q_harmonics, omega_peak
 
 
@@ -199,6 +130,16 @@ def main() -> None:
         dampings=DAMPINGS,
     )
     system.add_nonlinear_element(cubic_spring(k3=CUBIC_K3, dof_index=CUBIC_DOF))
+
+    # MATLAB: inter-DOF cubic spring k3=0.0042 with force_direction=[1;-1]
+    # Implemented via two polynomial_stiffness elements (relative displacement trick)
+    k3_inter = 0.0042  # MATLAB: k3=0 (no inter-DOF cubic in original Python)
+    _exp = np.array([[3, 0], [2, 1], [1, 2], [0, 3]], dtype=np.intp)
+    _coeff = np.array([k3_inter, -3 * k3_inter, 3 * k3_inter, -k3_inter])
+    # Element A: force on DOF 0 from (q0-q1)^3
+    system.add_nonlinear_element(polynomial_stiffness(_exp, _coeff, np.array([0, 1], dtype=np.intp)))
+    # Element B: force on DOF 1 from (q1-q0)^3
+    system.add_nonlinear_element(polynomial_stiffness(_exp, _coeff, np.array([1, 0], dtype=np.intp)))
 
     n_dof = system.n_dof  # 2
     n_total = n_dof * (2 * N_HARMONICS + 1)
@@ -236,6 +177,7 @@ def main() -> None:
         return hb_residual(x, lam, system, N_HARMONICS, excitation)
 
     opts = ContinuationOptions(
+        verbose=True,
         ds_initial=0.02,
         ds_min=1e-5,
         ds_max=0.1,
@@ -257,54 +199,42 @@ def main() -> None:
     # ------------------------------------------------------------------
     # 4. Extract FRF data
     # ------------------------------------------------------------------
-    frf = _extract_frf(result.solutions, result.stability, n_dof, N_HARMONICS)
+    omega_all, a_rms_all = _compute_a_rms(result.solutions, n_dof, N_HARMONICS)
+    amp_h1 = _extract_h1_amplitude(result.solutions, n_dof, N_HARMONICS)
 
-    # Filter to the requested frequency range for plotting/summary
-    mask = (frf.omega >= OMEGA_START) & (frf.omega <= OMEGA_END)
-    frf_plot = FRFResult(
-        omega=frf.omega[mask],
-        amplitude=frf.amplitude[:, mask],
-        stability=frf.stability[mask],
-    )
+    # Filter to requested frequency range
+    mask = (omega_all >= OMEGA_START) & (omega_all <= OMEGA_END)
+    omega_plot = omega_all[mask]
+    a_rms_plot = a_rms_all[mask]
+    amp_h1_plot = amp_h1[:, mask]
 
     # ------------------------------------------------------------------
     # 5. Compute summary statistics
     # ------------------------------------------------------------------
-    amp_dof0 = frf_plot.amplitude[0, :]
-    amp_dof1 = frf_plot.amplitude[1, :]
+    peak_amp_dof0 = float(np.max(amp_h1_plot[0]))
+    peak_amp_dof1 = float(np.max(amp_h1_plot[1]))
+    omega_peak_dof0 = float(omega_plot[np.argmax(amp_h1_plot[0])])
+    omega_peak_dof1 = float(omega_plot[np.argmax(amp_h1_plot[1])])
 
-    peak_amp_dof0 = float(np.max(amp_dof0))
-    peak_amp_dof1 = float(np.max(amp_dof1))
-    omega_peak_dof0 = float(frf_plot.omega[np.argmax(amp_dof0)])
-    omega_peak_dof1 = float(frf_plot.omega[np.argmax(amp_dof1)])
-
-    # ------------------------------------------------------------------
-    # 6. Generate and save plots
-    # ------------------------------------------------------------------
-
-    # FRF at DOF 0
-    fig0 = plot_frf(frf_plot, dof=0, harmonic=1)
-    fig0.suptitle("Two-DOF Cubic Spring — FRF at DOF 0", fontsize=11)
-    frf0_path = OUTPUT_DIR / "frf_dof0.png"
-    fig0.savefig(frf0_path, dpi=150, bbox_inches="tight")
-    print(f"  Saved: {frf0_path}")
-
-    # FRF at DOF 1
-    fig1 = plot_frf(frf_plot, dof=1, harmonic=1)
-    fig1.suptitle("Two-DOF Cubic Spring — FRF at DOF 1", fontsize=11)
-    frf1_path = OUTPUT_DIR / "frf_dof1.png"
-    fig1.savefig(frf1_path, dpi=150, bbox_inches="tight")
-    print(f"  Saved: {frf1_path}")
-
-    # Harmonic content at peak (DOF 0)
     Q_harmonics, omega_at_peak = _extract_harmonics_at_peak(
         result.solutions, n_dof, N_HARMONICS, dof=0
     )
-    fig_hc = plot_harmonic_content(Q_harmonics, omega_at_peak)
-    fig_hc.suptitle("Harmonic Content at Peak (DOF 0)", fontsize=11)
-    hc_path = OUTPUT_DIR / "harmonic_content.png"
-    fig_hc.savefig(hc_path, dpi=150, bbox_inches="tight")
-    print(f"  Saved: {hc_path}")
+
+    # ------------------------------------------------------------------
+    # 6. Generate and save single figure (matches MATLAB frequency_response.png)
+    # ------------------------------------------------------------------
+    fig, ax = plt.subplots()
+    ax.plot(omega_plot, a_rms_plot, "g-", label="HB")
+    ax.set_xlabel("excitation frequency")
+    ax.set_ylabel("response amplitude")
+    ax.set_xlim(OMEGA_START, OMEGA_END)
+    ax.legend(loc="upper right")
+    fig.tight_layout()
+
+    fig_path = OUTPUT_DIR / "frequency_response.png"
+    fig.savefig(fig_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved: {fig_path}")
 
     # ------------------------------------------------------------------
     # 7. Print summary

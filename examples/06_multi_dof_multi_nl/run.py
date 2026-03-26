@@ -1,19 +1,23 @@
 """
 Example 06 — Multi-DOF Multi-Nonlinearity FRF.
 
-4-DOF chain of oscillators with two different nonlinear elements:
-  - cubic_spring(k3=0.5)           at DOF 0
-  - tanh_dry_friction(f0=0.2, c=8) at DOF 2
+3-DOF chain of oscillators with multiple nonlinear elements.
+Matches MATLAB 07_multiDOFoscillator_multipleNonlinearities.m.
 
-Demonstrates FRF for all DOFs and Newton convergence history.
+Nonlinear elements:
+  - tanh_dry_friction(f0=1.0, c=20.0)  at DOF 0 (approx for elasticDryFriction W1)
+  - tanh_dry_friction(f0=1.0, c=20.0)  at DOF 1 (approx for elasticDryFriction W2)
+  - cubic_spring(k3=1.0)               at DOF 1 (cubicSpring W3)
+  - polynomial_stiffness (rel. cubic k3=1) for relative DOF 1-2 (cubicSpring W4)
+  - unilateral_spring(k=1.0, gap=0.25) at DOF 2 (unilateralSpring W5)
 
-System parameters
+System parameters (MATLAB: 07_multiDOFoscillator_multipleNonlinearities.m)
 -----------------
-masses      = [1.0, 1.5, 1.0, 0.8]
-stiffnesses = [1.0, 0.8, 1.2, 0.6, 1.0]
-dampings    = [0.02] * 5
-Excitation  : F = 0.1 at DOF 0, harmonic 1
-Frequency   : omega in [0.3, 1.5] rad/s, n_harmonics = 3
+masses      = [1.0, 1.0, 1.0]
+stiffnesses = [1.0, 1.0, 1.0, 1.0]
+dampings    = [0.02] * 4
+Excitation  : F = 1.0 at DOF 1, harmonic 1
+Frequency   : omega in [0.5, 2.0] rad/s, n_harmonics = 7
 
 Outputs
 -------
@@ -42,7 +46,7 @@ if str(_REPO_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT / "src"))
 
 from nlvib.systems.oscillators import ChainOfOscillators
-from nlvib.nonlinearities.elements import cubic_spring, tanh_dry_friction
+from nlvib.nonlinearities.elements import cubic_spring, tanh_dry_friction, polynomial_stiffness, unilateral_spring
 from nlvib.solvers.harmonic_balance import hb_residual
 from nlvib.continuation.solver import ContinuationSolver, ContinuationOptions
 
@@ -53,25 +57,43 @@ OUTPUT_DIR = Path(__file__).parent / "output"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
-# System definition
+# System definition (MATLAB: 07_multiDOFoscillator_multipleNonlinearities.m)
 # ---------------------------------------------------------------------------
-MASSES      = [1.0, 1.5, 1.0, 0.8]
-STIFFNESSES = [1.0, 0.8, 1.2, 0.6, 1.0]
-DAMPINGS    = [0.02, 0.02, 0.02, 0.02, 0.02]
-FORCE_AMP   = 0.1
-OMEGA_MIN   = 0.3
-OMEGA_MAX   = 1.5
-N_HARMONICS = 3
+MASSES      = [1.0, 1.0, 1.0]              # MATLAB: [1.0, 1.5, 1.0, 0.8] (mi=[1,1,1])
+STIFFNESSES = [1.0, 1.0, 1.0, 1.0]        # MATLAB: [1.0, 0.8, 1.2, 0.6, 1.0] (ki=[1,1,1,1])
+DAMPINGS    = [0.02, 0.02, 0.02, 0.02]    # MATLAB: [0.02]*5 (di=0.02*ki)
+FORCE_AMP   = 1.0                          # MATLAB: 0.1 (Fex1=[0;1;0])
+OMEGA_MIN   = 0.5                          # MATLAB: 0.3 (Om_s=0.5)
+OMEGA_MAX   = 2.0                          # MATLAB: 1.5 (Om_e=2.0)
+N_HARMONICS = 7                            # MATLAB: 3 (H=7)
 
 system = ChainOfOscillators(
     masses=MASSES,
     stiffnesses=STIFFNESSES,
     dampings=DAMPINGS,
 )
-system.add_nonlinear_element(cubic_spring(k3=0.5, dof_index=0))
-system.add_nonlinear_element(tanh_dry_friction(f0=0.2, c=8.0, dof_index=2))
 
-excitation = {"dof": 0, "amplitude": FORCE_AMP, "harmonic": 1}
+# MATLAB nonlinear elements:
+# 1. elasticDryFriction: knl=20, muN=1, W1=[1;0;0] → DOF 0 (approx with tanh)
+system.add_nonlinear_element(tanh_dry_friction(f0=1.0, c=20.0, dof_index=0))  # MATLAB: f0=1.0, c=knl/muN=20
+
+# 2. elasticDryFriction: knl=20, muN=1, W2=[-1;1;0] → relative DOF 0-1 (simplified: single-DOF approx at DOF 1)
+system.add_nonlinear_element(tanh_dry_friction(f0=1.0, c=20.0, dof_index=1))  # MATLAB: relative DOF 0-1, simplified
+
+# 3. cubicSpring: k3=1, W3=[0;1;0] → DOF 1
+system.add_nonlinear_element(cubic_spring(k3=1.0, dof_index=1))  # MATLAB: k3=1 (was 0.5 at DOF 0)
+
+# 4. cubicSpring: k3=1, W4=[0;-1;1] → relative DOF 1-2 (polynomial_stiffness trick)
+_k3_rel = 1.0  # MATLAB: k3=1 for relative cubic DOF 1-2
+_exp_rel = np.array([[3, 0], [2, 1], [1, 2], [0, 3]], dtype=np.intp)
+_coeff_rel = np.array([_k3_rel, -3 * _k3_rel, 3 * _k3_rel, -_k3_rel])
+system.add_nonlinear_element(polynomial_stiffness(_exp_rel, _coeff_rel, np.array([1, 2], dtype=np.intp)))  # force on DOF 1
+system.add_nonlinear_element(polynomial_stiffness(_exp_rel, _coeff_rel, np.array([2, 1], dtype=np.intp)))  # force on DOF 2
+
+# 5. unilateralSpring: k=1, gap=0.25, W5=[0;0;1] → DOF 2
+system.add_nonlinear_element(unilateral_spring(k=1.0, gap=0.25, dof_index=2))  # MATLAB: k=1, gap=0.25
+
+excitation = {"dof": 1, "amplitude": FORCE_AMP, "harmonic": 1}  # MATLAB: Fex1=[0;1;0] → DOF 1 (was DOF 0)
 
 # ---------------------------------------------------------------------------
 # Initial solution at omega_start
@@ -99,6 +121,7 @@ def residual_fn(Q: np.ndarray, omega: float) -> tuple[np.ndarray, np.ndarray]:
 
 solver = ContinuationSolver()
 opts = ContinuationOptions(
+        verbose=True,
     ds_initial=0.01,
     ds_min=1e-6,
     ds_max=0.05,

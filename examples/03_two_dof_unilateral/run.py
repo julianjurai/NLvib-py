@@ -47,16 +47,16 @@ from nlvib.visualization.plots import plot_frf, plot_phase_portrait
 # Named system constants
 # ---------------------------------------------------------------------------
 MASSES = [1.0, 1.0]
-STIFFNESSES = [1.0, 0.5, 1.0]
-DAMPINGS = [0.02, 0.02, 0.02]
-CONTACT_STIFFNESS = 5.0
-CONTACT_GAP = 0.1
-CONTACT_DOF = 1        # DOF index of the unilateral spring (second mass)
-EXCITATION_DOF = 0     # DOF index for the harmonic forcing (first mass)
+STIFFNESSES = [0.0, 1.0, 1.0]   # MATLAB: [1.0, 0.5, 1.0] (ki=[0,1,1])
+DAMPINGS = [0.0, 0.03, 0.03]    # MATLAB: [0.02, 0.02, 0.02] (di=0.03*ki)
+CONTACT_STIFFNESS = 100.0        # MATLAB: 5.0 (k=100)
+CONTACT_GAP = 1.0                # MATLAB: 0.1 (gap=1)
+CONTACT_DOF = 0                  # MATLAB: 1 (W=[1;0] → DOF 0)
+EXCITATION_DOF = 1               # MATLAB: 0 (Fex1=[0;0.1] → DOF 1)
 EXCITATION_AMPLITUDE = 0.1
-N_HARMONICS = 7        # extra harmonics needed for impact accuracy
+N_HARMONICS = 21                 # MATLAB: 7 (H=21)
 OMEGA_START = 0.5
-OMEGA_END = 1.8
+OMEGA_END = 0.8                  # MATLAB: 1.8 (MATLAB sweeps 0.8→0.5; Python sweeps forward 0.5→0.8)
 
 # Continuation options
 DS_INITIAL = 0.02
@@ -135,6 +135,7 @@ def run_continuation(
         return hb_residual(Q, omega, system, N_HARMONICS, excitation)
 
     opts = ContinuationOptions(
+        verbose=True,
         ds_initial=DS_INITIAL,
         ds_min=DS_MIN,
         ds_max=DS_MAX,

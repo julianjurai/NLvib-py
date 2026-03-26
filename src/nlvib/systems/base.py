@@ -233,76 +233,70 @@ class MechanicalSystem:
 
         for element in self._nonlinear_elements:
             f_e, df_dq_e, df_ddq_e = element.eval(q_arr, dq_arr)
-            # f_e is a scalar; df_dq_e and df_ddq_e are (n_dof,) vectors.
-            # Each element contributes a single force to one DOF row;
-            # its Jacobian row is the row of that DOF in the global Jacobian.
-            # Conventionally (K&G Appendix C) each element returns a length-n
-            # gradient vector, which maps directly to a single row of the
-            # global n×n Jacobian when the element acts on one DOF.
-            # We store the full gradient as a row in the Jacobian matrix so
-            # the i-th row captures df_i/dq_j for all j.
-            #
-            # Identification of the force DOF: find where df_dq_e is nonzero
-            # or where df_ddq_e is nonzero; the force is applied there.
-            # However, the simpler and more general approach is to treat each
-            # element as contributing a force that is laid out in global space
-            # via the element's own gradient vectors.
-            #
-            # The element convention is:
-            #   f_e   : scalar — the force applied to the element DOF
-            #   df_dq_e  : (n,) — gradient of that scalar w.r.t. all q
-            #   df_ddq_e : (n,) — gradient of that scalar w.r.t. all dq
-            #
-            # Assembly into global n-vector f and global n×n Jacobians:
-            # We need to know which DOF receives this force.  For the standard
-            # elements in elements.py the force acts on the DOF where df_dq_e
-            # or df_ddq_e is nonzero, but we need a more robust approach.
-            #
-            # Robust assembly: we ask element to declare its target DOF via
-            # the gradient.  For single-DOF elements the nonzero index of
-            # df_dq_e (or df_ddq_e for dampers) identifies the target row.
-            # For velocity-only elements (quadratic damper, tanh friction)
-            # df_dq_e is zero; use df_ddq_e.
-            # For displacement-only elements df_ddq_e is zero; use df_dq_e.
-            #
-            # Rather than guessing the target DOF, we accumulate using the
-            # convention that f_e is placed at every global DOF i where
-            # df_dq_e[i] or df_ddq_e[i] is nonzero.  For well-formed
-            # single-DOF elements this is exactly one DOF.
-            #
-            # Simpler equivalent: find target DOF as argmax of |df_dq_e| +
-            # |df_ddq_e|.  But an element can have no Jacobian (e.g., sign
-            # function at zero) — in that case we must fall back to a
-            # pre-declared dof_index.
-            #
-            # Cleanest correct approach:
-            # The global f is a vector.  Each element contributes ONE scalar
-            # to ONE row.  The Jacobians are filled per-row.  We identify the
-            # target DOF from the element's gradient nonzero mask, falling
-            # back to the maximum-gradient DOF.
-            dof_mask = (np.abs(df_dq_e) + np.abs(df_ddq_e)) > 0.0
-            nonzero_dofs = np.flatnonzero(dof_mask)
 
-            if nonzero_dofs.size > 0:
-                # Place force at the first participating DOF.
-                target_dof = int(nonzero_dofs[0])
+            # Determine which DOF row receives this element's scalar force.
+            # Priority 1: explicit target_dof declared on the element (e.g. for
+            # polynomial_stiffness spanning multiple DOFs).
+            # Priority 2: infer from first nonzero entry in the gradient.
+            if element.target_dof is not None:
+                target_dof = element.target_dof
             else:
-                # No gradient signal (e.g. nonlinearity at zero crossing).
-                # Force is still present; use the entire gradient vector.
-                # We add f_e to no specific DOF — skip force but add Jacobian.
-                # (This case is degenerate; proper elements should declare DOF.)
-                target_dof = -1
+                dof_mask = (np.abs(df_dq_e) + np.abs(df_ddq_e)) > 0.0
+                nonzero_dofs = np.flatnonzero(dof_mask)
+                target_dof = int(nonzero_dofs[0]) if nonzero_dofs.size > 0 else -1
 
             if target_dof >= 0:
                 f_global[target_dof] += f_e
-
-            # Jacobian rows: df_dq_e is the gradient vector of f_e w.r.t. all q.
-            # It belongs as a contribution to row `target_dof` of df_dq_global.
-            if target_dof >= 0:
                 df_dq_global[target_dof] += df_dq_e
                 df_ddq_global[target_dof] += df_ddq_e
 
         return f_global, df_dq_global, df_ddq_global
+
+    def eval_nonlinear_forces_batch(
+        self,
+        q_time: FloatArray,
+        dq_time: FloatArray,
+    ) -> FloatArray:
+        """Assemble the nonlinear force matrix over a batch of time samples.
+
+        Uses vectorised ``eval_batch`` when available on each element,
+        falling back to the scalar ``eval_nonlinear_forces`` loop for any
+        element that does not supply one.
+
+        Parameters
+        ----------
+        q_time:
+            Displacement matrix of shape ``(n_dof, n_time)``.
+        dq_time:
+            Velocity matrix of shape ``(n_dof, n_time)``.
+
+        Returns
+        -------
+        f_nl_time : ndarray, shape ``(n_dof, n_time)``
+            Assembled nonlinear force matrix.
+        """
+        n = self.n_dof
+        n_time = q_time.shape[1]
+        f_nl_time: FloatArray = np.zeros((n, n_time), dtype=np.float64)
+
+        scalar_elements = []
+        for element in self._nonlinear_elements:
+            if element.eval_batch is not None:
+                f_nl_time += element.eval_batch(q_time, dq_time)
+            else:
+                scalar_elements.append(element)
+
+        # Fall back to scalar loop for elements without eval_batch
+        if scalar_elements:
+            for t in range(n_time):
+                for element in scalar_elements:
+                    f_e, _df_dq, _df_ddq = element.eval(q_time[:, t], dq_time[:, t])
+                    dof_mask = (np.abs(_df_dq) + np.abs(_df_ddq)) > 0.0
+                    nonzero_dofs = np.flatnonzero(dof_mask)
+                    if nonzero_dofs.size > 0:
+                        f_nl_time[int(nonzero_dofs[0]), t] += f_e
+
+        return f_nl_time
 
     # ------------------------------------------------------------------
     # Dunder methods

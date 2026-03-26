@@ -120,6 +120,7 @@ class ContinuationOptions:
     lambda_min: float | None = None
     lambda_max: float | None = None
     callback: Callable[[FloatArray], bool | None] | None = None
+    verbose: bool = False
 
 
 @dataclass
@@ -526,6 +527,9 @@ class ContinuationSolver:
             stability_list.append(unstable_flag)
             ds_hist_list.append(ds)
 
+            if options.verbose:
+                print(f"Continuation at {lam:.4f}, step size {ds:.4g}.")
+
             # ---------------------------------------------------------------
             # Callback
             # ---------------------------------------------------------------
@@ -542,10 +546,14 @@ class ContinuationSolver:
             if options.lambda_min is not None and lam < options.lambda_min:
                 message = f"lambda = {lam:.6g} < lambda_min = {options.lambda_min:.6g}"
                 converged = True
+                if options.verbose:
+                    print("Terminating continuation since parameter end value is reached.")
                 break
             if options.lambda_max is not None and lam > options.lambda_max:
                 message = f"lambda = {lam:.6g} > lambda_max = {options.lambda_max:.6g}"
                 converged = True
+                if options.verbose:
+                    print("Terminating continuation since parameter end value is reached.")
                 break
 
             # Check ds bounds after adaptation

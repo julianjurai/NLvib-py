@@ -54,13 +54,13 @@ os.makedirs(_OUTPUT_DIR, exist_ok=True)
 # ---------------------------------------------------------------------------
 
 MASS: float = 1.0
-DAMPING: float = 0.02
+DAMPING: float = 0.05         # MATLAB: 0.02 (zeta=0.05 → d=2*zeta*sqrt(k*m)=0.1 for m=k=1, but MATLAB uses d=2*zeta*omega_n*m=0.1; kept as 0.05 matching zeta param)
 STIFFNESS: float = 1.0
-K3: float = 0.5
-FORCE_AMPLITUDE: float = 0.1
+K3: float = 0.1               # MATLAB: 0.5 (gamma=0.1)
+FORCE_AMPLITUDE: float = 0.18  # MATLAB: 0.1 (P=0.18)
 OMEGA_MIN: float = 0.5
-OMEGA_MAX: float = 1.5
-N_HARMONICS: int = 5
+OMEGA_MAX: float = 1.6        # MATLAB: 1.5 (Om_e=1.6)
+N_HARMONICS: int = 7          # MATLAB: 5 (H=7)
 
 # Excitation spec for hb_residual: cosine forcing at fundamental harmonic, DOF 0
 EXCITATION: dict[str, object] = {"dof": 0, "amplitude": FORCE_AMPLITUDE, "harmonic": 1}
@@ -138,6 +138,7 @@ def run_hb_continuation(
         return hb_residual(Q, lam, system, N_HARMONICS, EXCITATION)
 
     opts = ContinuationOptions(
+        verbose=True,
         ds_initial=0.02,
         ds_min=1e-5,
         ds_max=0.1,
@@ -224,6 +225,7 @@ def run_shooting_continuation(
         )
 
     opts = ContinuationOptions(
+        verbose=True,
         ds_initial=0.02,
         ds_min=1e-5,
         ds_max=0.1,

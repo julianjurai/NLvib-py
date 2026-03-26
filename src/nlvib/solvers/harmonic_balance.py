@@ -348,13 +348,8 @@ def _build_nl_force_fn_with_vel(
 
         dq_time = freq_to_time(dQ_mat, n_time)  # (n_dof, n_time)
 
-        # Evaluate nonlinear forces at each time point
-        f_nl_time = np.zeros((n_dof, n_time), dtype=np.float64)
-        for t in range(n_time):
-            f_e, _df_dq, _df_ddq = system.eval_nonlinear_forces(
-                q_time[:, t], dq_time[:, t]
-            )
-            f_nl_time[:, t] = f_e
+        # Evaluate nonlinear forces at each time point (vectorised via eval_batch)
+        f_nl_time = system.eval_nonlinear_forces_batch(q_time, dq_time)
 
         # Transform back to frequency domain
         F_nl_mat = time_to_freq(f_nl_time, n_harmonics)  # (n_dof, 2H+1)

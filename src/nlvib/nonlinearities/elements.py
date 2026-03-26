@@ -26,6 +26,8 @@ from numpy.typing import NDArray
 
 FloatArray = NDArray[np.float64]
 EvalFn = Callable[[FloatArray, FloatArray], tuple[float, FloatArray, FloatArray]]
+# Batch eval: (q_time, dq_time) both (n_dof, n_time) → f_time (n_dof, n_time)
+EvalBatchFn = Callable[[FloatArray, FloatArray], FloatArray]
 
 
 # ---------------------------------------------------------------------------
@@ -48,11 +50,26 @@ class NonlinearElement:
         - *df_dq*  is the gradient of *f* w.r.t. *q* (shape ``(n_dof,)``),
         - *df_ddq* is the gradient of *f* w.r.t. *dq* (shape ``(n_dof,)``).
 
+    eval_batch:
+        Optional vectorised form: ``eval_batch(q_time, dq_time) -> f_time``
+        where *q_time* and *dq_time* have shape ``(n_dof, n_time)`` and
+        *f_time* has shape ``(n_dof, n_time)``.  When present the AFT loop
+        uses this instead of calling ``eval`` once per time sample.
+
+    target_dof:
+        Optional explicit index of the DOF that receives this element's
+        scalar force.  When set, :meth:`MechanicalSystem.eval_nonlinear_forces`
+        uses this directly instead of inferring the target from the gradient.
+        Required for multi-DOF elements (e.g. ``polynomial_stiffness``) where
+        the gradient spans several DOFs but the force belongs to one specific row.
+
     label:
         Human-readable identifier (used in repr and logging).
     """
 
     eval: EvalFn
+    eval_batch: EvalBatchFn | None = None
+    target_dof: int | None = None
     label: str = "NonlinearElement"
 
     def __call__(
@@ -106,7 +123,12 @@ def cubic_spring(k3: float, dof_index: int) -> NonlinearElement:
         df_ddq = np.zeros_like(dq)
         return f, df_dq, df_ddq
 
-    return NonlinearElement(eval=_eval, label=f"cubic_spring(k3={k3}, dof={dof_index})")
+    def _eval_batch(q_time: FloatArray, dq_time: FloatArray) -> FloatArray:
+        f_time = np.zeros_like(q_time)
+        f_time[dof_index, :] = k3 * q_time[dof_index, :] ** 3
+        return f_time
+
+    return NonlinearElement(eval=_eval, eval_batch=_eval_batch, label=f"cubic_spring(k3={k3}, dof={dof_index})")
 
 
 def quadratic_damper(c2: float, dof_index: int) -> NonlinearElement:
@@ -152,8 +174,14 @@ def quadratic_damper(c2: float, dof_index: int) -> NonlinearElement:
         df_ddq[dof_index] = 2.0 * c2 * np.abs(dqi)
         return f, df_dq, df_ddq
 
+    def _eval_batch(q_time: FloatArray, dq_time: FloatArray) -> FloatArray:
+        f_time = np.zeros_like(q_time)
+        dqi_t = dq_time[dof_index, :]
+        f_time[dof_index, :] = c2 * dqi_t * np.abs(dqi_t)
+        return f_time
+
     return NonlinearElement(
-        eval=_eval, label=f"quadratic_damper(c2={c2}, dof={dof_index})"
+        eval=_eval, eval_batch=_eval_batch, label=f"quadratic_damper(c2={c2}, dof={dof_index})"
     )
 
 
@@ -204,8 +232,13 @@ def tanh_dry_friction(f0: float, c: float, dof_index: int) -> NonlinearElement:
         df_ddq[dof_index] = f0 * c * (1.0 - tanh_val**2)
         return f, df_dq, df_ddq
 
+    def _eval_batch(q_time: FloatArray, dq_time: FloatArray) -> FloatArray:
+        f_time = np.zeros_like(q_time)
+        f_time[dof_index, :] = f0 * np.tanh(c * dq_time[dof_index, :])
+        return f_time
+
     return NonlinearElement(
-        eval=_eval, label=f"tanh_dry_friction(f0={f0}, c={c}, dof={dof_index})"
+        eval=_eval, eval_batch=_eval_batch, label=f"tanh_dry_friction(f0={f0}, c={c}, dof={dof_index})"
     )
 
 
@@ -259,8 +292,14 @@ def unilateral_spring(k: float, gap: float, dof_index: int) -> NonlinearElement:
         df_ddq = np.zeros_like(dq)
         return f, df_dq, df_ddq
 
+    def _eval_batch(q_time: FloatArray, dq_time: FloatArray) -> FloatArray:
+        f_time = np.zeros_like(q_time)
+        penetration = q_time[dof_index, :] - gap
+        f_time[dof_index, :] = k * np.maximum(penetration, 0.0)
+        return f_time
+
     return NonlinearElement(
-        eval=_eval, label=f"unilateral_spring(k={k}, gap={gap}, dof={dof_index})"
+        eval=_eval, eval_batch=_eval_batch, label=f"unilateral_spring(k={k}, gap={gap}, dof={dof_index})"
     )
 
 
@@ -418,8 +457,34 @@ def polynomial_stiffness(
         df_ddq = np.zeros_like(dq)
         return f, df_dq, df_ddq
 
+    # The first entry of dof_indices is the primary DOF that receives the force.
+    # This is the convention for multi-DOF polynomial elements: dof_indices[0] is
+    # where the scalar force f is applied; the full gradient vector covers all
+    # participating DOFs so the Jacobian row is correctly assembled.
+    _target_dof = int(dof_indices_arr[0])
+
+    def _eval_batch(q_time: FloatArray, dq_time: FloatArray) -> FloatArray:
+        f_time = np.zeros_like(q_time)
+        # q_local_t: shape (n_local_dofs, n_time)
+        q_local_t = q_time[dof_indices_arr, :]
+        # term_powers_t[m, l, t] = q_local_t[l, t]^e[m,l]
+        # shape: (n_terms, n_local_dofs, n_time)
+        term_powers_t = (
+            q_local_t[np.newaxis, :, :]
+            ** exponents_arr[:, :, np.newaxis].astype(np.float64)
+        )
+        # monomial_values_t[m, t] = prod_l term_powers_t[m, l, t]
+        monomial_values_t = np.prod(term_powers_t, axis=1)  # (n_terms, n_time)
+        # f_values_t[t] = sum_m c_m * monomial_values_t[m, t]
+        f_values_t = coefficients_arr @ monomial_values_t  # (n_time,)
+        # Force goes to the primary DOF (dof_indices[0])
+        f_time[_target_dof, :] = f_values_t
+        return f_time
+
     return NonlinearElement(
         eval=_eval,
+        eval_batch=_eval_batch,
+        target_dof=_target_dof,
         label=(
             f"polynomial_stiffness(n_terms={n_terms}, dofs={list(dof_indices_arr)})"
         ),
