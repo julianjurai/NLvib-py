@@ -58,3 +58,7 @@ __pycache__/
 dist/
 build/
 .eggs/
+
+
+# Matlab
+matlab/

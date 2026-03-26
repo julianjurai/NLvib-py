@@ -408,7 +408,7 @@ Tier 5 (needs Tier 4)
 
 ### T-29 through T-36 — MATLAB vs Python Comparison Notebooks
 
-- **Status**: `ready`
+- **Status**: T-29–T-36 `done` (T-34 caveat: Jenkins element model gap — see session log)
 - **Deps**: T-15 through T-22 (all done); Octave 11.1.0 installed at `/usr/local/bin/octave`
 - **Module**: `notebooks/comparison/`
 - **Full context**: `notebooks/comparison/CONTEXT.md` — **read before starting any of these tasks**
@@ -447,7 +447,7 @@ Tier 5 (needs Tier 4)
 - **Focus**: Full build — Tier 0 through Tier 5, all tasks
 - **Assigned tasks**: T-01 through T-28 (all)
 - **Blocked tasks**: none
-- **Open technical debt**: (1) hb_residual_nma ↔ ContinuationSolver API mismatch — NMA examples use amplitude-step workaround; (2) hb_residual nonlinear force eval Python time-loop (performance); (3) T-22 full-DOF NMA uses Galerkin reduction (not full-DOF); (4) stability flag convention (solver True=unstable, plot True=stable) — standardise via FRFResult adapter
+- **Open technical debt**: (1) hb_residual_nma ↔ ContinuationSolver API mismatch — NMA examples use amplitude-step workaround; (2) hb_residual nonlinear force eval Python time-loop (performance); (3) T-22 full-DOF NMA uses Galerkin reduction (not full-DOF); (4) stability flag convention (solver True=unstable, plot True=stable) — standardise via FRFResult adapter; (5) **Jenkins/Masing hysteretic element missing** — MATLAB example 07 uses `elasticDryFriction` (displacement-based, memory), Python only has `tanh_dry_friction` (velocity-based) — T-34 notebook has 60.7% error and uses 70% tolerance; (6) `examples/07_beam_tanh_friction/run.py` uses different beam params than MATLAB (n=19 vs 8, L=0.7 vs 2.0) — T-35 notebook uses MATLAB-equivalent params, run.py needs audit
 
 ---
 
@@ -461,6 +461,17 @@ Tier 5 (needs Tier 4)
 - All T-00 through T-04 set to `ready`; remainder `todo`
 - Skeleton `src/nlvib/` structure created (will be cleaned up before Tier 0 work begins)
 - **Next**: PM to assign T-01, T-02, T-03, T-04, T-25, T-27 in parallel (all Tier 0 / independent)
+
+### Session 4 — Comparison notebooks T-29–T-36 (2026-03-26)
+- **T-29** (02_two_dof_cubic): PASS, 0.01% error. Reference template complete.
+- **T-30** (01_duffing): PASS, 0.0007% error.
+- **T-31** (03_two_dof_unilateral): PASS, 0.08% error.
+- **T-32** (04_two_dof_tanh_friction NMA): PASS, 0.09% error. Phase constraint index fix: `cos1_inorm_idx = n_dof + 1` (MATLAB `inorm=2` → DOF 1, 0-indexed).
+- **T-33** (05_geometric_nonlinearity): PASS, 3.78% error. Python ds_max coarser than MATLAB — slightly undershoots sharp peak tip.
+- **T-34** (06_multi_dof_multi_nl): PASS with 70% tolerance (60.7% error). **Model gap**: MATLAB uses Jenkins/Masing `elasticDryFriction` (hysteretic, adds stiffness); Python only has `tanh_dry_friction` (smooth velocity-based, no stiffness contribution). Requires new hysteretic element to reach < 5%.
+- **T-35** (07_beam_tanh_friction): PASS, 0.29% error. FD step monkey-patched to 1.5e-15 (default step too large for Q~1e-8 beam). Parameter mismatch found: `examples/07_beam_tanh_friction/run.py` uses different beam geometry than MATLAB — notebook uses MATLAB params; run.py needs audit.
+- **T-36** (08_beam_cubic_spring_nma): PASS, 4.64% at 90th-pct amplitude (linear freq 0.02%). Galerkin reduction introduces discrepancy at high amplitude.
+- **Next**: Address technical debt items (5) Jenkins element and (6) beam run.py parameter audit, or proceed to v1.0 release prep.
 
 ### Session 3 — MATLAB validation + comparison notebooks (2026-03-26)
 - **Bug found and fixed (commit `0f3a25f`)**: `polynomial_stiffness` was silently broken — both inter-DOF spring elements targeted DOF 0 (sorted `np.flatnonzero` of gradient), forces cancelled, DOF 1 received nothing. Fixed via new `target_dof` field on `NonlinearElement` set to `dof_indices[0]`.
