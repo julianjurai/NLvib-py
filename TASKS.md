@@ -404,6 +404,43 @@ Tier 5 (needs Tier 4)
 
 ---
 
+---
+
+### T-29 through T-36 — MATLAB vs Python Comparison Notebooks
+
+- **Status**: `ready`
+- **Deps**: T-15 through T-22 (all done); Octave 11.1.0 installed at `/usr/local/bin/octave`
+- **Module**: `notebooks/comparison/`
+- **Full context**: `notebooks/comparison/CONTEXT.md` — **read before starting any of these tasks**
+- **Approach**: Each notebook (1) creates a thin `save_data.m` wrapper that runs the original MATLAB script via Octave and saves HB solution variables to `hb_data.mat`, (2) runs the Python HB continuation inline using the same parameters as `run.py`, (3) overlays both curves on one figure, (4) prints a peak amplitude comparison table, (5) asserts < 5% relative error at peak.
+- **One agent per task** — tasks are fully independent, run in parallel.
+
+| Task | Notebook | MATLAB source | Python source |
+|------|----------|---------------|---------------|
+| T-29 | `notebooks/comparison/02_two_dof_cubic.ipynb` | `matlab/NLvib/EXAMPLES/02_twoDOFoscillator_cubicSpring/` | `examples/02_two_dof_cubic/run.py` |
+| T-30 | `notebooks/comparison/01_duffing.ipynb` | `matlab/NLvib/EXAMPLES/01_Duffing/` | `examples/01_duffing/run.py` |
+| T-31 | `notebooks/comparison/03_two_dof_unilateral.ipynb` | `matlab/NLvib/EXAMPLES/03_twoDOFoscillator_unilateralSpring/` | `examples/03_two_dof_unilateral/run.py` |
+| T-32 | `notebooks/comparison/04_two_dof_tanh_friction.ipynb` | `matlab/NLvib/EXAMPLES/05_twoDOFoscillator_tanhDryFriction_NM/` | `examples/04_two_dof_tanh_friction/run.py` |
+| T-33 | `notebooks/comparison/05_geometric_nonlinearity.ipynb` | `matlab/NLvib/EXAMPLES/06_twoSprings_geometricNonlinearity/` | `examples/05_geometric_nonlinearity/run.py` |
+| T-34 | `notebooks/comparison/06_multi_dof_multi_nl.ipynb` | `matlab/NLvib/EXAMPLES/07_multiDOFoscillator_multipleNonlinearities/` | `examples/06_multi_dof_multi_nl/run.py` |
+| T-35 | `notebooks/comparison/07_beam_tanh_friction.ipynb` | `matlab/NLvib/EXAMPLES/08_beam_tanhDryFriction/` | `examples/07_beam_tanh_friction/run.py` |
+| T-36 | `notebooks/comparison/08_beam_cubic_spring_nma.ipynb` | `matlab/NLvib/EXAMPLES/09_beam_cubicSpring_NM/` | `examples/08_beam_cubic_spring_nma/run.py` |
+
+**Key technical learnings to apply (from Session 3):**
+- `polynomial_stiffness` `target_dof` must be `dof_indices[0]`, not `min(dof_indices)` — fixed in commit `0f3a25f`
+- MATLAB `a_rms = sqrt(sum(Q_HB(1:2:end,:).^2))/sqrt(2)` = DOF 0 all-harmonic RMS. Python: `Q_all.reshape(n_steps, 2H+1, n_dof)[:,:,0]` then divide by `sqrt(2)`
+- For n_dof=1 (Duffing): `Q_HB(1:2:end,:)` = all rows → `a_rms = sqrt(sum(Q_all**2, axis=1))/sqrt(2)`
+- Example 02 (T-29) is the reference/template — complete it first
+
+**Acceptance per notebook:**
+- Octave runs without error and produces `hb_data.mat`
+- Both curves on one figure, labelled "MATLAB/Octave HB" and "Python HB"
+- Peak amplitude table printed in a cell
+- Assertion: `abs(peak_py - peak_matlab) / peak_matlab < 0.05` passes
+- `jupyter nbconvert --to notebook --execute` exits 0
+
+---
+
 ## Current Sprint
 
 - **Session date**: 2026-03-25 (completed)
@@ -424,6 +461,15 @@ Tier 5 (needs Tier 4)
 - All T-00 through T-04 set to `ready`; remainder `todo`
 - Skeleton `src/nlvib/` structure created (will be cleaned up before Tier 0 work begins)
 - **Next**: PM to assign T-01, T-02, T-03, T-04, T-25, T-27 in parallel (all Tier 0 / independent)
+
+### Session 3 — MATLAB validation + comparison notebooks (2026-03-26)
+- **Bug found and fixed (commit `0f3a25f`)**: `polynomial_stiffness` was silently broken — both inter-DOF spring elements targeted DOF 0 (sorted `np.flatnonzero` of gradient), forces cancelled, DOF 1 received nothing. Fixed via new `target_dof` field on `NonlinearElement` set to `dof_indices[0]`.
+- **AFT vectorized 220×**: Added `eval_batch` to all 5 element types + `eval_nonlinear_forces_batch()` to base. Example 02 runtime: ~30s → ~4.5s.
+- **Verbose continuation**: `ContinuationOptions.verbose=True` prints MATLAB-style step messages.
+- **All 8 example parameters corrected 1:1 to MATLAB demos** (masses, stiffnesses, damping, H, omega range).
+- **Example 02 output**: Consolidated to single `frequency_response.png` matching MATLAB convention (a_rms DOF0 vs omega).
+- **Comparison notebooks spec**: T-29 through T-36 added. Context in `notebooks/comparison/CONTEXT.md`.
+- **Next**: PM assigns T-29 first (reference template), then T-30–T-36 in parallel.
 
 ### Session 2 — Full build (2026-03-25)
 - **Completed all Tier 0–5 tasks plus T-28 in a single session**
