@@ -1,0 +1,61 @@
+site_name: "NLvib — Nonlinear Vibration Analysis Toolbox"
+site_description: "Python port of NLvib: harmonic balance, shooting, arc-length continuation for nonlinear mechanical systems."
+site_author: "NLvib Contributors"
+repo_url: https://github.com/nlvib/nlvib-python
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - toc.integrate
+    - search.suggest
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_submodules: false
+
+nav:
+  - Overview: index.md
+  - API Reference:
+      - Nonlinear Elements: api/nonlinearities.md
+      - Mechanical Systems: api/systems.md
+      - Solvers: api/solvers.md
+      - Continuation: api/continuation.md
+      - CMS Reduction: api/cms.md
+      - Visualization: api/visualization.md
+      - IO: api/io.md
+      - Utilities: api/utils.md
+  - Examples: examples.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - toc:
+      permalink: true

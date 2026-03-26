@@ -1,0 +1,64 @@
+name: Fixture Validation
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Runs at 03:00 UTC every Monday
+    - cron: "0 3 * * 1"
+
+jobs:
+  validate:
+    name: Validation suite
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-validate-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-validate-
+            ${{ runner.os }}-pip-
+
+      - name: Install package and dev dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Check that fixture .npz files are present and non-empty
+        id: fixture-check
+        run: |
+          python - <<'EOF'
+          import pathlib, sys
+          fixture_dir = pathlib.Path("tests/fixtures")
+          npz_files = list(fixture_dir.glob("*.npz"))
+          non_empty = [f for f in npz_files if f.stat().st_size > 0]
+          if not non_empty:
+              print("No non-empty .npz fixture files found — skipping validation suite.")
+              # Write a signal file so the next step can gate on it
+              pathlib.Path(".fixtures_present").write_text("false")
+              sys.exit(0)
+          print(f"Found {len(non_empty)} fixture file(s): {[f.name for f in non_empty]}")
+          pathlib.Path(".fixtures_present").write_text("true")
+          EOF
+
+      - name: Read fixture presence flag
+        id: fixtures-flag
+        run: |
+          PRESENT=$(cat .fixtures_present)
+          echo "present=${PRESENT}" >> "$GITHUB_OUTPUT"
+
+      - name: Run validation tests
+        if: steps.fixtures-flag.outputs.present == 'true'
+        run: pytest tests/validation/ -v --tb=short
+
+      - name: Skip notice
+        if: steps.fixtures-flag.outputs.present != 'true'
+        run: echo "Validation suite skipped — no non-empty .npz fixture files in tests/fixtures/."

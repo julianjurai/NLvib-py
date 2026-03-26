@@ -17,6 +17,9 @@ env/
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb
+# Allow committed notebooks in demo/ and notebooks/
+!demo/*.ipynb
+!notebooks/*.ipynb
 
 # Testing / coverage
 .pytest_cache/
@@ -45,3 +48,13 @@ docs/_build/
 results/
 *.mat
 *.frd
+site/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+.eggs/
