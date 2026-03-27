@@ -26,6 +26,7 @@ from nlvib.continuation import ContinuationOptions, ContinuationResult, Continua
 from nlvib.nonlinearities import (
     NonlinearElement,
     cubic_spring,
+    elastic_dry_friction,
     polynomial_stiffness,
     quadratic_damper,
     tanh_dry_friction,
@@ -64,6 +65,7 @@ __all__ = [
     # nonlinearities
     "NonlinearElement",
     "cubic_spring",
+    "elastic_dry_friction",
     "polynomial_stiffness",
     "quadratic_damper",
     "tanh_dry_friction",

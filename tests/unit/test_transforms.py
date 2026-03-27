@@ -236,6 +236,108 @@ class TestAFTTransform:
 
 
 # ---------------------------------------------------------------------------
+# Canonical MATLAB reference values for transform functions
+# ---------------------------------------------------------------------------
+
+
+class TestCanonicalTransformReferenceValues:
+    """Explicit canonical reference-point tests for freq_to_time and RMS formulae.
+
+    All expected values are derived analytically (no Octave required).
+    """
+
+    def test_freq_to_time_at_t0_cosine_coeff_1(self) -> None:
+        """freq_to_time: if Q has only a_1=1 (pure cos), then q(t=0) = 1.
+
+        MATLAB ref: q(t) = a_1*cos(t), so at t=0 (k=0): q = a_1 = 1.0
+        The NLvib convention is Q = [a_0, a_1, b_1, ...], so Q[1]=1 encodes
+        a_1=1, giving q(t_0) = a_0 + a_1*cos(0) + b_1*sin(0) = 0 + 1 + 0 = 1.
+        """
+        # MATLAB ref: q(0) = 1.0
+        H = 3
+        Q = np.zeros(2 * H + 1)
+        Q[1] = 1.0  # a_1 = 1  =>  q(t) = cos(t)
+        q_time = freq_to_time(Q, n_time_samples=N_TIME)
+        # k=0 corresponds to t=0: cos(0) = 1
+        assert q_time[0] == pytest.approx(1.0, abs=1e-12)
+
+    def test_freq_to_time_at_t0_sine_coeff_only(self) -> None:
+        """freq_to_time: if Q has only b_1=1 (pure sin), then q(t=0) = 0.
+
+        MATLAB ref: q(t) = b_1*sin(t), so at t=0: q = sin(0) = 0.
+        """
+        # MATLAB ref: q(0) = 0.0
+        H = 3
+        Q = np.zeros(2 * H + 1)
+        Q[2] = 1.0  # b_1 = 1  =>  q(t) = sin(t)
+        q_time = freq_to_time(Q, n_time_samples=N_TIME)
+        assert q_time[0] == pytest.approx(0.0, abs=1e-12)
+
+    def test_rms_of_pure_cosine_amplitude_1(self) -> None:
+        """RMS of q(t)=cos(t) reconstructed from Q=[0,1,0,...] equals 1/sqrt(2).
+
+        MATLAB ref: RMS of cos(t) over one period = sqrt(1/2pi * integral_0^{2pi} cos^2(t) dt)
+                    = sqrt(1/2) = 1/sqrt(2) ≈ 0.7071067811865476
+        The discrete RMS from freq_to_time must match this to 1e-10.
+        """
+        # MATLAB ref: rms = 1/sqrt(2) ≈ 0.7071
+        H = 1
+        Q = np.zeros(2 * H + 1)
+        Q[1] = 1.0  # a_1 = 1  =>  q(t) = cos(t)
+        q_time = freq_to_time(Q, n_time_samples=N_TIME)
+        rms = float(np.sqrt(np.mean(q_time**2)))
+        assert rms == pytest.approx(1.0 / np.sqrt(2.0), abs=1e-10)
+
+    def test_rms_of_pure_sine_amplitude_1(self) -> None:
+        """RMS of q(t)=sin(t) reconstructed from Q=[0,0,1,...] equals 1/sqrt(2).
+
+        MATLAB ref: RMS of sin(t) over one period = 1/sqrt(2) ≈ 0.7071
+        """
+        # MATLAB ref: rms = 1/sqrt(2) ≈ 0.7071
+        H = 1
+        Q = np.zeros(2 * H + 1)
+        Q[2] = 1.0  # b_1 = 1  =>  q(t) = sin(t)
+        q_time = freq_to_time(Q, n_time_samples=N_TIME)
+        rms = float(np.sqrt(np.mean(q_time**2)))
+        assert rms == pytest.approx(1.0 / np.sqrt(2.0), abs=1e-10)
+
+    def test_rms_formula_from_coefficients(self) -> None:
+        """Verify RMS computed from coefficients matches discrete RMS from freq_to_time.
+
+        For q(t) = a_0 + sum_h (a_h cos(h*t) + b_h sin(h*t)), the analytic RMS is:
+            RMS^2 = a_0^2 + (1/2) * sum_h (a_h^2 + b_h^2)
+
+        MATLAB ref: for a_1=1, all other coeffs=0:
+            RMS^2 = 0 + 0.5*(1^2 + 0^2) = 0.5  =>  RMS = 1/sqrt(2)
+
+        This test verifies the formula for a multi-harmonic signal.
+        """
+        # MATLAB ref: RMS^2 = a_0^2 + 0.5*sum(a_h^2 + b_h^2)
+        H = 3
+        # Build a signal with known non-zero coefficients
+        Q = np.zeros(2 * H + 1)
+        Q[0] = 0.5   # a_0 = 0.5  (DC)
+        Q[1] = 1.0   # a_1 = 1.0
+        Q[2] = 0.3   # b_1 = 0.3
+        Q[5] = 0.7   # a_3 = 0.7
+        Q[6] = 0.2   # b_3 = 0.2
+
+        # Analytic RMS from coefficients:
+        # a_0^2 + 0.5*(a_1^2 + b_1^2) + 0.5*(a_3^2 + b_3^2)
+        rms_analytic = float(np.sqrt(
+            Q[0] ** 2
+            + 0.5 * (Q[1] ** 2 + Q[2] ** 2)
+            + 0.5 * (Q[5] ** 2 + Q[6] ** 2)
+        ))
+
+        # Discrete RMS from reconstructed time signal
+        q_time = freq_to_time(Q, n_time_samples=N_TIME)
+        rms_discrete = float(np.sqrt(np.mean(q_time**2)))
+
+        assert rms_discrete == pytest.approx(rms_analytic, abs=1e-10)
+
+
+# ---------------------------------------------------------------------------
 # dynamic_scaling
 # ---------------------------------------------------------------------------
 

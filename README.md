@@ -13,7 +13,7 @@ Institute for Aircraft Propulsion (ILA), University of Stuttgart.
 - Source: https://github.com/maltekrack/NLvib
 - Reference: Krack M. & Gross J. (2019). *Harmonic Balance for Nonlinear Vibration Problems*. Springer.
 
-License: GPL-3.0 (inherited from original).
+License: MIT. See [LICENSE](LICENSE) for details.
 
 ---
 
@@ -127,6 +127,61 @@ Interactive Jupyter notebooks are in `notebooks/`. Each notebook corresponds to 
 ```bash
 pip install jupyter
 jupyter notebook notebooks/
+```
+
+---
+
+## Comparison Notebooks
+
+`notebooks/comparison/` contains eight notebooks that run the Python HB continuation and the
+MATLAB/Octave reference side-by-side, then overlay both curves on one figure to quantify
+numerical agreement.
+
+| Example | MATLAB source | Peak error |
+|---------|--------------|------------|
+| 01 Duffing | `EXAMPLES/01_Duffing` | 0.0007% |
+| 02 Two-DOF cubic | `EXAMPLES/02_twoDOFoscillator_cubicSpring` | 0.01% |
+| 03 Two-DOF unilateral | `EXAMPLES/03_twoDOFoscillator_unilateralSpring` | 0.08% |
+| 04 Two-DOF tanh NMA | `EXAMPLES/05_twoDOFoscillator_tanhDryFriction_NM` | 0.09% |
+| 05 Geometric nonlinearity | `EXAMPLES/06_twoSprings_geometricNonlinearity` | <1% |
+| 06 Multi-DOF multi-NL | `EXAMPLES/07_multiDOFoscillator_multipleNonlinearities` | <5% (Jenkins) |
+| 07 Beam tanh friction | `EXAMPLES/08_beam_tanhDryFriction` | 0.29% |
+| 08 Beam cubic NMA | `EXAMPLES/09_beam_cubicSpring_NM` | <5% (3-mode) |
+
+See [`notebooks/comparison/CONTEXT.md`](notebooks/comparison/CONTEXT.md) for the full technical
+context, notebook template, and per-example notes.
+
+---
+
+## Citing this work
+
+If you use this toolbox in published work, please cite both the original Krack & Gross (2019)
+textbook and this Python port.
+
+A machine-readable citation is available in [`CITATION.cff`](CITATION.cff). GitHub will
+surface a "Cite this repository" button in the sidebar automatically.
+
+Manual BibTeX entry for the Python port:
+
+```bibtex
+@software{nlvib_python,
+  title  = {{NLvib Python}: A Python port of the {NLvib} {MATLAB} toolbox},
+  author = {NLvib Python Contributors},
+  year   = {2026},
+  url    = {https://github.com/julianjurai/nonlinear_vibration_analysis_toolbox},
+}
+```
+
+For the underlying algorithms, cite the textbook:
+
+```bibtex
+@book{krack2019harmonic,
+  author    = {Krack, M. and Gro{\ss}, J.},
+  title     = {Harmonic Balance for Nonlinear Vibration Problems},
+  year      = {2019},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-030-14023-6},
+}
 ```
 
 ---

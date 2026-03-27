@@ -49,6 +49,7 @@ nav:
       - IO: api/io.md
       - Utilities: api/utils.md
   - Examples: examples.md
+  - Validation: validation.md
 
 markdown_extensions:
   - admonition

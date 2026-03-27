@@ -234,21 +234,31 @@ class MechanicalSystem:
         for element in self._nonlinear_elements:
             f_e, df_dq_e, df_ddq_e = element.eval(q_arr, dq_arr)
 
-            # Determine which DOF row receives this element's scalar force.
-            # Priority 1: explicit target_dof declared on the element (e.g. for
-            # polynomial_stiffness spanning multiple DOFs).
-            # Priority 2: infer from first nonzero entry in the gradient.
-            if element.target_dof is not None:
-                target_dof = element.target_dof
+            if element.force_direction is not None:
+                # Multi-DOF direction element: distribute scalar force f_e
+                # across all DOFs via force_direction vector w.
+                #   f_global   += f_e * w
+                #   df_dq      += outer(w, df_dq_e)    [Jacobian of (w*fnl) w.r.t. q]
+                #   df_ddq     += outer(w, df_ddq_e)
+                w = element.force_direction
+                f_global += f_e * w
+                df_dq_global += np.outer(w, df_dq_e)
+                df_ddq_global += np.outer(w, df_ddq_e)
             else:
-                dof_mask = (np.abs(df_dq_e) + np.abs(df_ddq_e)) > 0.0
-                nonzero_dofs = np.flatnonzero(dof_mask)
-                target_dof = int(nonzero_dofs[0]) if nonzero_dofs.size > 0 else -1
+                # Single-DOF element: place scalar force at target_dof.
+                # Priority 1: explicit target_dof on the element.
+                # Priority 2: infer from first nonzero entry in the gradient.
+                if element.target_dof is not None:
+                    target_dof = element.target_dof
+                else:
+                    dof_mask = (np.abs(df_dq_e) + np.abs(df_ddq_e)) > 0.0
+                    nonzero_dofs = np.flatnonzero(dof_mask)
+                    target_dof = int(nonzero_dofs[0]) if nonzero_dofs.size > 0 else -1
 
-            if target_dof >= 0:
-                f_global[target_dof] += f_e
-                df_dq_global[target_dof] += df_dq_e
-                df_ddq_global[target_dof] += df_ddq_e
+                if target_dof >= 0:
+                    f_global[target_dof] += f_e
+                    df_dq_global[target_dof] += df_dq_e
+                    df_ddq_global[target_dof] += df_ddq_e
 
         return f_global, df_dq_global, df_ddq_global
 

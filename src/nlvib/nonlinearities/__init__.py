@@ -9,11 +9,13 @@ quadratic_damper
 tanh_dry_friction
 unilateral_spring
 polynomial_stiffness
+elastic_dry_friction
 """
 
 from nlvib.nonlinearities.elements import (
     NonlinearElement,
     cubic_spring,
+    elastic_dry_friction,
     polynomial_stiffness,
     quadratic_damper,
     tanh_dry_friction,
@@ -27,4 +29,5 @@ __all__ = [
     "tanh_dry_friction",
     "unilateral_spring",
     "polynomial_stiffness",
+    "elastic_dry_friction",
 ]

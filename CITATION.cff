@@ -1,0 +1,43 @@
+cff-version: 1.2.0
+message: >
+  If you use this software in academic work, please cite it using the
+  metadata below, and also cite the reference textbook by Krack & Gross (2019).
+title: "NLvib Python: A Python port of the NLvib MATLAB toolbox"
+version: "0.1.0"
+date-released: "2024-01-01"
+license: MIT
+repository-code: https://github.com/maltekrack/NLvib
+authors:
+  - name: "NLvib Python Contributors"
+    alias: "julianjurai"
+abstract: >
+  A Python port of the NLvib MATLAB toolbox for nonlinear vibration analysis.
+  Implements harmonic balance (HB), the alternating frequency-time (AFT) method,
+  the shooting method with Newmark time integration, and pseudo-arc-length
+  continuation for tracing frequency-response and backbone curves of nonlinear
+  mechanical systems.
+  Originally developed by Malte Krack and Johann Gross at the University of Stuttgart
+  (Lehrstuhl fur Strukturdynamik und Schwingungstechnik / ILA).
+keywords:
+  - nonlinear vibration
+  - harmonic balance
+  - arc-length continuation
+  - shooting method
+  - structural dynamics
+  - NLvib
+references:
+  - type: book
+    title: "Harmonic Balance for Nonlinear Vibration Problems"
+    authors:
+      - family-names: Krack
+        given-names: Malte
+      - family-names: "Gro\xDF"
+        given-names: Johann
+    year: 2019
+    publisher:
+      name: Springer
+    isbn: "978-3-030-14023-6"
+    doi: "10.1007/978-3-030-14023-6"
+    notes: >
+      This is the primary algorithmic reference for all methods implemented
+      in this toolbox. Please cite when using this software in academic work.

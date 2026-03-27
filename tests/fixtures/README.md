@@ -134,3 +134,11 @@ fixture's `tolerance` scalar so the comparison is always self-documented.
 | `09_beam_tanhFriction.npz` | — | — | Large system; may take >10 min |
 | `10_beam_cubicSpring_NM.npz` | — | — | NMA; slow to generate |
 | `analytical/duffing_backbone.npz` | YES | N/A | Closed-form; always present |
+
+> **Note — Example 06 fixtures (`08_multiDOF_multiNL.npz`)**: when regenerating
+> this fixture, ensure the Python side uses the `elastic_dry_friction` element
+> (from `nlvib.nonlinearities.elements`) rather than `tanh_dry_friction`.
+> The MATLAB example `06_multiDOFoscillator` uses a Jenkins slider
+> (`elasticDryFriction`), so only the hysteretic element produces a valid
+> comparison.  Using `tanh_dry_friction` as a proxy will cause the fixture
+> validation to fail at the default `1e-6` tolerance.

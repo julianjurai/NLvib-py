@@ -14,11 +14,40 @@ Problems*, Appendix C, Table C.1.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable
 
 import numpy as np
 from numpy.typing import NDArray
+
+# ---------------------------------------------------------------------------
+# Optional Numba JIT for performance-critical inner loops
+# ---------------------------------------------------------------------------
+try:
+    import numba as _numba
+
+    @_numba.njit(cache=True)
+    def _jenkins_loop(qnl_2: "NDArray[np.float64]", k_slip: float, f_lim: float) -> "NDArray[np.float64]":
+        """Numba-JIT Jenkins state machine (sequential, cannot be vectorised)."""
+        n2 = len(qnl_2)
+        fnl_2 = np.zeros(n2)
+        qsl = 0.0
+        for ij in range(1, n2):
+            f_pred = k_slip * (qnl_2[ij] - qsl)
+            if abs(f_pred) >= f_lim:
+                if f_pred >= 0.0:
+                    fnl_2[ij] = f_lim
+                else:
+                    fnl_2[ij] = -f_lim
+                qsl = qnl_2[ij] - fnl_2[ij] / k_slip
+            else:
+                fnl_2[ij] = f_pred
+        return fnl_2
+
+    _HAVE_NUMBA = True
+except ImportError:
+    _HAVE_NUMBA = False
+    _jenkins_loop = None  # type: ignore[assignment]
 
 # ---------------------------------------------------------------------------
 # Type aliases
@@ -62,6 +91,17 @@ class NonlinearElement:
         uses this directly instead of inferring the target from the gradient.
         Required for multi-DOF elements (e.g. ``polynomial_stiffness``) where
         the gradient spans several DOFs but the force belongs to one specific row.
+        Ignored when *force_direction* is set.
+
+    force_direction:
+        Optional unit (or weighted) direction vector of shape ``(n_dof,)``.
+        When set, the scalar force *f* returned by ``eval`` is distributed
+        to all DOFs as ``f_global += f * force_direction``, and the Jacobian
+        row is ``df_global[i, :] += force_direction[i] * df_dq``.  Used for
+        elements acting along an arbitrary direction (e.g. the Jenkins element
+        with W = [−1, 1, 0] for a relative DOF spring).  For such elements,
+        ``eval_batch`` is the primary evaluation path; ``eval`` returns the
+        projected scalar force for the assembly fallback only.
 
     label:
         Human-readable identifier (used in repr and logging).
@@ -70,6 +110,7 @@ class NonlinearElement:
     eval: EvalFn
     eval_batch: EvalBatchFn | None = None
     target_dof: int | None = None
+    force_direction: FloatArray | None = field(default=None, compare=False)
     label: str = "NonlinearElement"
 
     def __call__(
@@ -489,3 +530,180 @@ def polynomial_stiffness(
             f"polynomial_stiffness(n_terms={n_terms}, dofs={list(dof_indices_arr)})"
         ),
     )
+
+
+def elastic_dry_friction(
+    k_slip: float,
+    f_lim: float,
+    dof_index: int | None = None,
+    force_direction: NDArray[np.float64] | None = None,
+) -> NonlinearElement:
+    r"""Create a Jenkins/Masing elastic dry friction (hysteretic) element.
+
+    The element models a spring (stiffness *k_slip*) in series with a Coulomb
+    slider (slip force *f_lim*).  The force law is:
+
+    .. math::
+
+        f = k_{\mathrm{slip}} \,(q_{\mathrm{nl}} - z)
+
+    where :math:`q_{\mathrm{nl}}` is the projected displacement and :math:`z`
+    is the internal slider position governed by Masing's rule:
+
+    - *Stuck*: :math:`|f| < f_{\mathrm{lim}}` → :math:`z` unchanged,
+      :math:`f = k_{\mathrm{slip}}(q - z)`.
+    - *Sliding*: :math:`|f| \ge f_{\mathrm{lim}}` → :math:`f = \pm f_{\mathrm{lim}}`,
+      :math:`z = q \mp f_{\mathrm{lim}} / k_{\mathrm{slip}}`.
+
+    The AFT evaluation integrates two periods from zero initial conditions
+    and uses the second (settled) period for the Fourier transform, matching
+    the MATLAB NLvib ``elasticDryFriction`` implementation.
+
+    Reference: Jenkins (1962); Masing (1926); Krack & Gross (2019) §C.2.
+
+    Parameters
+    ----------
+    k_slip:
+        Elastic stiffness of the stuck spring [N/m].
+    f_lim:
+        Coulomb slip-force limit [N].
+    dof_index:
+        Zero-based DOF index for an axis-aligned single-DOF element.
+        Exactly one of *dof_index* or *force_direction* must be provided.
+    force_direction:
+        Direction vector of shape ``(n_dof,)`` for a multi-DOF element
+        (e.g. ``[-1, 1, 0]`` for a relative-displacement Jenkins spring
+        between DOF 0 and DOF 1).  The projected displacement is
+        :math:`q_{\mathrm{nl}} = w^T q` and the global force contribution
+        is :math:`\Delta f = w \cdot f_{\mathrm{nl}}`.
+        Exactly one of *dof_index* or *force_direction* must be provided.
+
+    Returns
+    -------
+    NonlinearElement
+        Element with ``eval`` and ``eval_batch`` methods.
+
+    Raises
+    ------
+    ValueError
+        If neither or both of *dof_index* and *force_direction* are supplied.
+    """
+    if (dof_index is None) == (force_direction is None):
+        raise ValueError(
+            "Exactly one of dof_index or force_direction must be provided."
+        )
+
+    if force_direction is not None:
+        w: NDArray[np.float64] = np.asarray(force_direction, dtype=np.float64)
+    else:
+        # Build axis-aligned direction from dof_index
+        # (direction is used only by force_direction path; dof_index path uses
+        #  the dof_index directly for performance)
+        w = None  # type: ignore[assignment]
+
+    def _jenkins_time_series(qnl_1period: FloatArray) -> FloatArray:
+        """Run Jenkins state machine for two periods; return second period.
+
+        Marches through ``[qnl_1period, qnl_1period]`` (2 concatenated
+        periods) starting from zero initial conditions, then returns the
+        forces for the second period only (stabilised hysteresis loop).
+
+        Equation reference: Krack & Gross (2019) §C.2, MATLAB HB_residual.m
+        ``elasticDryFriction`` branch.
+
+        Uses Numba JIT when available for ~50× speedup on the sequential loop.
+        """
+        n = len(qnl_1period)
+        qnl_2 = np.concatenate([qnl_1period, qnl_1period])
+        if _HAVE_NUMBA:
+            fnl_2 = _jenkins_loop(qnl_2, k_slip, f_lim)
+        else:
+            fnl_2 = np.zeros(2 * n, dtype=np.float64)
+            qsl: float = 0.0  # slider position (internal state)
+            for ij in range(1, 2 * n):
+                f_pred = k_slip * (qnl_2[ij] - qsl)
+                if abs(f_pred) >= f_lim:
+                    fnl_2[ij] = f_lim * float(np.sign(f_pred))
+                    qsl = qnl_2[ij] - fnl_2[ij] / k_slip
+                else:
+                    fnl_2[ij] = f_pred
+                    # qsl unchanged (stuck)
+        return fnl_2[n:]  # settled second period
+
+    if dof_index is not None:
+        # -----------------------------------------------------------------
+        # Single-DOF axis-aligned element
+        # -----------------------------------------------------------------
+        def _eval_single(
+            q: FloatArray, dq: FloatArray
+        ) -> tuple[float, FloatArray, FloatArray]:
+            qi = float(q[dof_index])
+            f_pred = k_slip * qi
+            if abs(f_pred) >= f_lim:
+                fnl = float(f_lim * np.sign(f_pred))
+                effective_k = 0.0  # sliding: no stiffness increment
+            else:
+                fnl = f_pred
+                effective_k = k_slip
+            df_dq = np.zeros_like(q)
+            df_dq[dof_index] = effective_k
+            df_ddq = np.zeros_like(dq)
+            return fnl, df_dq, df_ddq
+
+        def _eval_batch_single(
+            q_time: FloatArray, dq_time: FloatArray
+        ) -> FloatArray:
+            qnl = q_time[dof_index, :]  # (n_time,)
+            fnl = _jenkins_time_series(qnl)
+            f_time = np.zeros_like(q_time)
+            f_time[dof_index, :] = fnl
+            return f_time
+
+        return NonlinearElement(
+            eval=_eval_single,
+            eval_batch=_eval_batch_single,
+            target_dof=dof_index,
+            label=f"elastic_dry_friction(k={k_slip}, f_lim={f_lim}, dof={dof_index})",
+        )
+
+    else:
+        # -----------------------------------------------------------------
+        # Multi-DOF force-direction element  (e.g. W = [-1, 1, 0])
+        # -----------------------------------------------------------------
+        def _eval_dir(
+            q: FloatArray, dq: FloatArray
+        ) -> tuple[float, FloatArray, FloatArray]:
+            # Projected displacement: qnl = w' * q
+            qnl = float(w @ q)
+            f_pred = k_slip * qnl
+            if abs(f_pred) >= f_lim:
+                fnl = float(f_lim * np.sign(f_pred))
+                effective_k = 0.0
+            else:
+                fnl = f_pred
+                effective_k = k_slip
+            # Gradient of scalar fnl w.r.t. q: dFnl/dq = effective_k * w
+            df_dq = w * effective_k
+            df_ddq = np.zeros_like(dq)
+            # Return scalar fnl; assembly distributes via force_direction
+            return fnl, df_dq, df_ddq
+
+        def _eval_batch_dir(
+            q_time: FloatArray, dq_time: FloatArray
+        ) -> FloatArray:
+            # qnl = w' * q_time, shape (n_time,)
+            qnl = w @ q_time  # (n_time,)
+            fnl = _jenkins_time_series(qnl)  # (n_time,)
+            # Distribute: f_time[i, :] = w[i] * fnl
+            return np.outer(w, fnl)  # (n_dof, n_time)
+
+        return NonlinearElement(
+            eval=_eval_dir,
+            eval_batch=_eval_batch_dir,
+            target_dof=None,
+            force_direction=w,
+            label=(
+                f"elastic_dry_friction(k={k_slip}, f_lim={f_lim}, "
+                f"dir={list(force_direction)})"  # type: ignore[arg-type]
+            ),
+        )

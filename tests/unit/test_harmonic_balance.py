@@ -415,3 +415,97 @@ class TestExcitationVector:
 
         np.testing.assert_allclose(R_dict, R_arr, atol=1e-14)
         np.testing.assert_allclose(J_dict, J_arr, atol=1e-14)
+
+
+# ---------------------------------------------------------------------------
+# Canonical MATLAB reference values for HB residual
+# ---------------------------------------------------------------------------
+
+
+class TestCanonicalHBReferenceValues:
+    """Explicit reference-value tests for hb_residual at known analytical points.
+
+    All expected values are derived analytically from the HB equations
+    (no Octave required).
+    """
+
+    def test_residual_at_zero_Q_undamped_linear(self) -> None:
+        """HB residual at Q=0 for undamped 1-DOF linear system with force F.
+
+        For m=1, d=0, k=1, omega=0.5, F_amp=1 and Q=0:
+            R[0] = 0 * a_0 = 0          (DC equation: K * a_0 = 0 => 1 * 0 = 0)
+            R[1] = (k - m*omega^2) * A - F_amp  (cosine h=1 equation)
+                 = (1 - 0.25) * 0 - 1 = -1
+            R[2] = (k - m*omega^2) * B + d*omega*A  (sine h=1 equation, d=0)
+                 = 0.75 * 0 + 0 = 0
+
+        MATLAB ref: R = [0, -1, 0] (residual = -excitation at Q=0)
+        """
+        # MATLAB ref: R = [0.0, -1.0, 0.0] at Q=0, omega=0.5, F=1, undamped linear
+        m, d, k = 1.0, 0.0, 1.0
+        omega = 0.5
+        F_amp = 1.0
+        sys = _make_linear_1dof(m=m, d=d, k=k)
+        Q = np.zeros(3, dtype=np.float64)
+        excitation = {"dof": 0, "amplitude": F_amp, "harmonic": 1}
+        R, _J = hb_residual(Q, omega, sys, 1, excitation)
+        # Only the cosine-h1 equation has a nonzero RHS: R[1] = 0 - F_amp = -1
+        np.testing.assert_allclose(R[0], 0.0, atol=1e-14)
+        np.testing.assert_allclose(R[1], -F_amp, atol=1e-14)
+        np.testing.assert_allclose(R[2], 0.0, atol=1e-14)
+
+    def test_residual_exact_values_below_resonance(self) -> None:
+        """HB residual at analytical SS for m=1, d=0.1, k=1, omega=0.5, F=1.
+
+        Analytical steady-state (K&G 2019 §3):
+            Z(omega) = (k - m*omega^2) + i*d*omega
+                     = (1 - 0.25) + i*(0.05)
+                     = 0.75 + 0.05i
+            C = F / Z = 1 / (0.75 + 0.05i)
+            A = Re(C) = 0.75 / (0.75^2 + 0.05^2)
+            B = -Im(C) = 0.05 / (0.75^2 + 0.05^2)
+
+        At Q=[0, A, B] the residual must be zero to machine precision.
+
+        MATLAB ref: norm(R) < 1e-12 at analytical SS point.
+        """
+        # MATLAB ref: norm(R) = 0 at analytical steady state
+        m, d, k = 1.0, 0.1, 1.0
+        omega = 0.5
+        F_amp = 1.0
+        denom = (k - m * omega**2) ** 2 + (d * omega) ** 2
+        # MATLAB ref: A = (k - m*omega^2)*F / denom
+        A = (k - m * omega**2) * F_amp / denom
+        B = d * omega * F_amp / denom
+        sys = _make_linear_1dof(m=m, d=d, k=k)
+        Q = np.array([0.0, A, B], dtype=np.float64)
+        excitation = {"dof": 0, "amplitude": F_amp, "harmonic": 1}
+        R, _J = hb_residual(Q, omega, sys, 1, excitation)
+        np.testing.assert_allclose(np.linalg.norm(R), 0.0, atol=1e-12)
+
+    def test_jacobian_linear_system_exact_values(self) -> None:
+        """Jacobian of HB residual for undamped 1-DOF linear at omega=1, H=1.
+
+        For m=1, d=0, k=4, omega=1, H=1:
+            J = block_diag(k, [[k-m*omega^2, d*omega], [-d*omega, k-m*omega^2]])
+              = block_diag(4, [[4-1, 0], [0, 4-1]])
+              = block_diag(4, [[3, 0], [0, 3]])
+
+        MATLAB ref: J = diag([4, 3, 3]) for this undamped case.
+        """
+        # MATLAB ref: J = diag([k, k-m*omega^2, k-m*omega^2]) for d=0
+        m, d, k = 1.0, 0.0, 4.0
+        omega = 1.0
+        sys = _make_linear_1dof(m=m, d=d, k=k)
+        Q = np.zeros(3, dtype=np.float64)
+        excitation = {"dof": 0, "amplitude": 0.0}
+        _R, J = hb_residual(Q, omega, sys, 1, excitation)
+        # DC block: J[0,0] = k = 4
+        np.testing.assert_allclose(J[0, 0], k, atol=1e-14)
+        # Cosine/sine block diagonal for h=1 (undamped, so off-diag = 0):
+        # J[1,1] = J[2,2] = k - m*omega^2 = 3
+        np.testing.assert_allclose(J[1, 1], k - m * omega**2, atol=1e-14)
+        np.testing.assert_allclose(J[2, 2], k - m * omega**2, atol=1e-14)
+        # Off-diagonal of the h=1 block is d*omega = 0
+        np.testing.assert_allclose(J[1, 2], 0.0, atol=1e-14)
+        np.testing.assert_allclose(J[2, 1], 0.0, atol=1e-14)

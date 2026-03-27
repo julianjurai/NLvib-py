@@ -13,13 +13,16 @@ build/
 .venv/
 venv/
 env/
+.env
+.env.*
 
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb
-# Allow committed notebooks in demo/ and notebooks/
+# Allow committed notebooks in demo/, notebooks/, and notebooks/comparison/
 !demo/*.ipynb
 !notebooks/*.ipynb
+!notebooks/comparison/*.ipynb
 
 # Testing / coverage
 .pytest_cache/

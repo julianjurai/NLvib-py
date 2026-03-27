@@ -798,3 +798,78 @@ class TestChainOfOscillators:
         r = repr(chain)
         assert "ChainOfOscillators" in r
         assert "n_dof=3" in r
+
+    # --- canonical MATLAB reference values ---
+
+    def test_chain_2dof_equal_masses_equal_springs_K_canonical(self) -> None:
+        """Canonical 2-DOF chain: m=[1,1], k=[1,1,1] (equal left/inter/right springs).
+
+        MATLAB ref (K&G 2019 §5, tridiagonal assembly with n+1=3 springs):
+            K_ii = k[i] + k[i+1]:  K[0,0] = 1+1 = 2,  K[1,1] = 1+1 = 2
+            K_ij = -k[i+1]:        K[0,1] = K[1,0] = -1
+
+            => K = [[2, -1],
+                    [-1,  2]]
+        """
+        # MATLAB ref: K = [[2, -1], [-1, 2]]
+        chain = ChainOfOscillators(
+            masses=[1.0, 1.0],
+            stiffnesses=[1.0, 1.0, 1.0],
+            dampings=[0.0, 0.0, 0.0],
+        )
+        K = chain.K.toarray()
+        expected_K = np.array([[2.0, -1.0], [-1.0, 2.0]])
+        assert_allclose(K, expected_K, atol=1e-15)
+
+    def test_chain_2dof_equal_masses_equal_springs_M_canonical(self) -> None:
+        """Canonical 2-DOF chain: m=[1,1] → M = diag([1, 1]) = I_2.
+
+        MATLAB ref: M = [[1, 0], [0, 1]]
+        """
+        # MATLAB ref: M = [[1, 0], [0, 1]]
+        chain = ChainOfOscillators(
+            masses=[1.0, 1.0],
+            stiffnesses=[1.0, 1.0, 1.0],
+            dampings=[0.0, 0.0, 0.0],
+        )
+        M = chain.M.toarray()
+        expected_M = np.eye(2)
+        assert_allclose(M, expected_M, atol=1e-15)
+
+    def test_chain_2dof_equal_masses_equal_springs_D_zero(self) -> None:
+        """Canonical 2-DOF chain with zero damping: D = 0.
+
+        MATLAB ref: D = [[0, 0], [0, 0]]
+        """
+        # MATLAB ref: D = zeros(2,2)
+        chain = ChainOfOscillators(
+            masses=[1.0, 1.0],
+            stiffnesses=[1.0, 1.0, 1.0],
+            dampings=[0.0, 0.0, 0.0],
+        )
+        D = chain.D.toarray()
+        assert_allclose(D, np.zeros((2, 2)), atol=1e-15)
+
+    def test_chain_2dof_natural_frequencies_canonical(self) -> None:
+        """Natural frequencies of canonical 2-DOF equal-mass chain.
+
+        For M = I, K = [[2,-1],[-1,2]], eigenvalue problem K*phi = lambda*M*phi:
+            det(K - lambda*I) = (2-lambda)^2 - 1 = 0
+            => lambda = 1  (omega_1 = 1)  and  lambda = 3  (omega_2 = sqrt(3))
+
+        MATLAB ref: eig(K, M) = [1, 3]  =>  omega = [1.0, sqrt(3)]
+
+        Since M=I for this canonical case, np.linalg.eigvalsh(K) gives the same result.
+        """
+        # MATLAB ref: natural frequencies omega = [1.0, sqrt(3) ≈ 1.7321]
+        chain = ChainOfOscillators(
+            masses=[1.0, 1.0],
+            stiffnesses=[1.0, 1.0, 1.0],
+            dampings=[0.0, 0.0, 0.0],
+        )
+        K = chain.K.toarray()
+        # M = I for this canonical case, so eigvalsh(K) gives eigenvalues directly
+        eigenvalues = np.linalg.eigvalsh(K)
+        omega = np.sqrt(np.sort(eigenvalues))
+        assert_allclose(omega[0], 1.0, atol=1e-12)
+        assert_allclose(omega[1], np.sqrt(3.0), atol=1e-12)

@@ -1,20 +1,27 @@
 """
 Example 03 — Two-DOF chain with unilateral spring (impact nonlinearity).
 
-System parameters
------------------
+Matches MATLAB NLvib EXAMPLES/03_twoDOFoscillator_unilateralSpring exactly.
+
+System parameters (matching MATLAB)
+-------------------------------------
 - masses         : [1.0, 1.0]  kg
-- stiffnesses    : [1.0, 0.5, 1.0]  N/m  (left-ground, inter-mass, right-ground)
-- dampings       : [0.02, 0.02, 0.02]  N·s/m
-- Nonlinearity   : unilateral spring k=5.0, gap=0.1 at DOF 1 (second mass)
-- Excitation     : harmonic force F=0.1 at DOF 0 (first mass)
-- Frequency range: omega in [0.5, 1.8]
-- n_harmonics    : 7  (unilateral springs need more harmonics for accuracy)
+- stiffnesses    : [0.0, 1.0, 1.0]  N/m  (ki=[0,1,1] in MATLAB)
+- dampings       : [0.0, 0.03, 0.03]  N·s/m  (di=0.03*ki in MATLAB)
+- Nonlinearity   : unilateral spring k=100, gap=1 at DOF 0 (W=[1;0] in MATLAB)
+- Excitation     : harmonic force F=0.1 at DOF 1 (Fex1=[0;0.1] in MATLAB)
+- Frequency range: omega in [0.5, 0.8]  (MATLAB sweeps 0.8→0.5 backwards)
+- n_harmonics    : 21  (H=21 in MATLAB)
+
+Amplitude metric (matching MATLAB)
+------------------------------------
+MATLAB plots: a_HB = sqrt(Q_HB(n+2,:).^2 + Q_HB(2*n+2,:).^2)
+= fundamental harmonic magnitude of DOF 1 (second coordinate, 0-indexed).
 
 Outputs (saved to examples/03_two_dof_unilateral/output/)
 ---------------------------------------------------------
-- frf.png           — FRF amplitude at DOF 1 (where the unilateral spring is)
-- phase_portrait.png — Phase portrait at peak frequency, reconstructed from HB coefficients
+- frf.png           — FRF: fundamental harmonic amplitude at DOF 1
+- phase_portrait.png — Phase portrait at peak frequency, reconstructed from HB
 
 Reference: Krack & Gross (2019) Harmonic Balance for Nonlinear Vibration Problems.
 """
@@ -46,17 +53,17 @@ from nlvib.visualization.plots import plot_frf, plot_phase_portrait
 # ---------------------------------------------------------------------------
 # Named system constants
 # ---------------------------------------------------------------------------
-MASSES = [1.0, 1.0]
-STIFFNESSES = [0.0, 1.0, 1.0]   # MATLAB: [1.0, 0.5, 1.0] (ki=[0,1,1])
-DAMPINGS = [0.0, 0.03, 0.03]    # MATLAB: [0.02, 0.02, 0.02] (di=0.03*ki)
-CONTACT_STIFFNESS = 100.0        # MATLAB: 5.0 (k=100)
-CONTACT_GAP = 1.0                # MATLAB: 0.1 (gap=1)
-CONTACT_DOF = 0                  # MATLAB: 1 (W=[1;0] → DOF 0)
-EXCITATION_DOF = 1               # MATLAB: 0 (Fex1=[0;0.1] → DOF 1)
-EXCITATION_AMPLITUDE = 0.1
-N_HARMONICS = 21                 # MATLAB: 7 (H=21)
-OMEGA_START = 0.5
-OMEGA_END = 0.8                  # MATLAB: 1.8 (MATLAB sweeps 0.8→0.5; Python sweeps forward 0.5→0.8)
+MASSES = [1.0, 1.0]              # mi=[1,1] in MATLAB
+STIFFNESSES = [0.0, 1.0, 1.0]   # ki=[0,1,1] in MATLAB
+DAMPINGS = [0.0, 0.03, 0.03]    # di=0.03*ki in MATLAB
+CONTACT_STIFFNESS = 100.0        # k=100 (unilateral spring stiffness)
+CONTACT_GAP = 1.0                # gap=1 (contact gap)
+CONTACT_DOF = 0                  # W=[1;0] → DOF 0 (first mass)
+EXCITATION_DOF = 1               # Fex1=[0;0.1] → DOF 1 (second mass)
+EXCITATION_AMPLITUDE = 0.1       # Excitation force amplitude
+N_HARMONICS = 21                 # H=21 in MATLAB
+OMEGA_START = 0.5                # Om_e=0.5 in MATLAB (Python sweeps forward)
+OMEGA_END = 0.8                  # Om_s=0.8 in MATLAB
 
 # Continuation options
 DS_INITIAL = 0.02
@@ -160,6 +167,15 @@ def run_continuation(
 def extract_amplitudes(solutions: np.ndarray, n_dof: int) -> np.ndarray:
     """Extract fundamental harmonic amplitudes at each solution point.
 
+    Matches MATLAB metric: a_HB = sqrt(Q_HB(n+2,:).^2 + Q_HB(2*n+2,:).^2)
+    which is the fundamental harmonic magnitude of DOF 1 (second coordinate).
+
+    Python HB Q-vector layout (size n_dof*(2H+1), blocks of n_dof):
+      [DC(n_dof), cos_h1(n_dof), sin_h1(n_dof), cos_h2(n_dof), sin_h2(n_dof), ...]
+    Index of DOF d, harmonic h:
+      cosine: (2*h - 1)*n_dof + d
+      sine:    2*h     *n_dof + d
+
     Parameters
     ----------
     solutions:
@@ -181,10 +197,9 @@ def extract_amplitudes(solutions: np.ndarray, n_dof: int) -> np.ndarray:
     for i in range(n_steps):
         Q = solutions[i, :n_total]
         for d in range(n_dof):
-            # Cosine coeff for h=1 at DOF d: block (2*1 - 1), element d
-            # Block index in flattened Q: block_start = (2*h - 1) * n_dof
-            c_idx = (2 * 1 - 1) * n_dof + d
-            s_idx = 2 * 1 * n_dof + d
+            # Cosine coeff for h=1 at DOF d
+            c_idx = (2 * 1 - 1) * n_dof + d   # = n_dof + d
+            s_idx =  2 * 1      * n_dof + d   # = 2*n_dof + d
             amplitudes[d, i] = np.sqrt(Q[c_idx] ** 2 + Q[s_idx] ** 2)
 
     return amplitudes
@@ -337,25 +352,29 @@ def main() -> None:
     # 4. Produce and save plots
     print("\n[4/4] Producing plots...")
 
-    # --- FRF at DOF 1 (where the unilateral spring is) ---
-    frf_result = FRFResult(
-        omega=omega_branch,
-        amplitude=amplitudes,   # shape (n_dof, n_steps)
-        stability=stability_for_plot,
-    )
-    fig_frf = plot_frf(frf_result, dof=CONTACT_DOF, harmonic=1)
-    fig_frf.suptitle(
-        "Example 03 — Two-DOF unilateral spring\n"
-        f"DOF {CONTACT_DOF} (contact side), H={N_HARMONICS}",
-        fontsize=9,
-    )
+    import matplotlib.pyplot as plt
+
+    # --- FRF at DOF 1 — match MATLAB save_data.m plot exactly ---
+    # MATLAB: green solid HB curve, no title, xlabel='excitation frequency',
+    #         ylabel='response amplitude', xlim=[0.5, 0.8], grid+box on.
+    amp_dof1 = amplitudes[EXCITATION_DOF, :]
+
+    fig_frf, ax_frf = plt.subplots(figsize=(6, 4))
+    ax_frf.plot(omega_branch, amp_dof1, "g-", linewidth=1.5, label="HB")
+    ax_frf.set_xlabel("excitation frequency")
+    ax_frf.set_ylabel("response amplitude")
+    ax_frf.set_xlim(OMEGA_START, OMEGA_END)  # [0.5, 0.8] matching MATLAB xlim(sort([Om_s Om_e]))
+    ax_frf.legend(loc="upper left")
+    ax_frf.grid(True)
+    ax_frf.set_axisbelow(True)
+    fig_frf.tight_layout()
     frf_path = OUTPUT_DIR / "frf.png"
     fig_frf.savefig(frf_path, dpi=150, bbox_inches="tight")
+    plt.close(fig_frf)
     print(f"      Saved: {frf_path}")
 
     # --- Phase portrait at peak ---
-    # Identify peak: largest amplitude at DOF 1
-    amp_dof1 = amplitudes[CONTACT_DOF, :]
+    # Identify peak: largest amplitude at DOF 1 (matching MATLAB a_HB)
     peak_idx = int(np.argmax(amp_dof1))
     omega_peak = float(omega_branch[peak_idx])
     amp_peak = float(amp_dof1[peak_idx])
@@ -369,26 +388,22 @@ def main() -> None:
         t[n_pts:],
         q_ts[:, n_pts:],
         dq_ts[:, n_pts:],
-        dof=CONTACT_DOF,
-    )
-    fig_phase.suptitle(
-        f"Example 03 — Phase portrait at peak\n"
-        f"DOF {CONTACT_DOF},  omega={omega_peak:.4f} rad/s,  amp={amp_peak:.4f} m",
-        fontsize=9,
+        dof=EXCITATION_DOF,
     )
     phase_path = OUTPUT_DIR / "phase_portrait.png"
     fig_phase.savefig(phase_path, dpi=150, bbox_inches="tight")
+    plt.close(fig_phase)
     print(f"      Saved: {phase_path}")
 
     # --- Summary ---
     print("\n" + "=" * 60)
     print("SUMMARY")
     print("=" * 60)
-    print(f"  Peak amplitude (DOF {CONTACT_DOF}, H=1): {amp_peak:.6f} m")
-    print(f"  Frequency at peak:                       {omega_peak:.6f} rad/s")
-    print(f"  Total continuation steps:                {raw_result.n_steps}")  # type: ignore[union-attr]
-    print(f"  Omega range covered:                     [{omega_branch.min():.4f}, {omega_branch.max():.4f}]")
-    print(f"  Output directory:                        {OUTPUT_DIR}")
+    print(f"  Peak amplitude (DOF {EXCITATION_DOF}, fund. harm.): {amp_peak:.6f} m")
+    print(f"  Frequency at peak:                             {omega_peak:.6f} rad/s")
+    print(f"  Total continuation steps:                      {raw_result.n_steps}")  # type: ignore[union-attr]
+    print(f"  Omega range covered:                           [{omega_branch.min():.4f}, {omega_branch.max():.4f}]")
+    print(f"  Output directory:                              {OUTPUT_DIR}")
     print("=" * 60)
 
 

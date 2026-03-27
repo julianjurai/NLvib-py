@@ -6,7 +6,12 @@ All functions return a ``matplotlib.figure.Figure`` and never call
 callers supply an existing axes, and an optional ``backend`` parameter
 switches between ``"matplotlib"`` (default) and ``"plotly"`` (optional dep).
 
-Design reference: NLvib MATLAB toolbox plotting conventions.
+Design reference: NLvib MATLAB toolbox plotting conventions (Lehrstuhl fur
+Strukturdynamik und Schwingungstechnik, University of Stuttgart).
+
+Original MATLAB toolbox by Malte Krack & Johann Gross.
+Reference: Krack, M. & Gross, J. (2019). *Harmonic Balance for Nonlinear
+Vibration Problems*. Springer. ISBN 978-3-030-14023-6.
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
 # Nonlinear Elements
 
-The `nlvib.nonlinearities` module defines the `NonlinearElement` dataclass and five factory
+The `nlvib.nonlinearities` module defines the `NonlinearElement` dataclass and six factory
 functions that construct standard nonlinear force/velocity elements for use with any
 `MechanicalSystem` subclass.
 
@@ -45,3 +45,9 @@ Krack & Gross (2019), Appendix C, Table C.1.
 ### polynomial_stiffness
 
 ::: nlvib.nonlinearities.elements.polynomial_stiffness
+
+---
+
+### elastic_dry_friction
+
+::: nlvib.nonlinearities.elements.elastic_dry_friction

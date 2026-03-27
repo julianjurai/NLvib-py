@@ -1,34 +1,43 @@
 """
 Example 07 — FE Euler-Bernoulli Beam with Tanh Dry Friction.
 
-Cantilever beam (clamped-free) with tanh dry friction at midpoint node (node 5).
-Demonstrates FRF near first bending resonance and the spatial mode shape.
+Cantilever beam (clamped-free) with tanh dry friction at midspan (node 3).
+Matches MATLAB 08_beam_tanhDryFriction/beam_tanhDryFriction_simple.m exactly.
 
-System parameters
+System parameters (MATLAB: beam_tanhDryFriction_advanced.m / beam.mat)
 -----------------
-n_elements = 10
-L = 1.0 m
-E = 2.1e11 Pa  (steel Young's modulus)
-I_area = 1e-8 m^4
-rho = 7800 kg/m^3
-A = 1e-4 m^2
-bc = "clamped-free"
+n_elements = 8       (9 nodes, 16 free DOFs)
+L          = 2.0  m
+height     = 0.1  m  (bending direction)
+thickness  = 0.3  m
+E          = 185e9 Pa
+rho        = 7830  kg/m^3
+bc         = "clamped-free"
+I_area     = height**3 * thickness / 12
+A_sect     = height * thickness
 
-Nonlinearity: tanh_dry_friction(f0=5.0, c=100.0) at node 5, dof_type="w"
-Excitation  : F = 10.0 at tip (node 10), dof_type="w", harmonic 1
-Frequency   : omega in [150, 250] rad/s, n_harmonics = 3
+Nonlinearity: tanh_dry_friction(f0=1.5, c=1/6e-7≈1.67e6) at node 3, dof_type="w"
+Excitation  : F = 0.2 at tip (node 8), dof_type="w", harmonic 1
+Frequency   : omega in [110, 370] rad/s, n_harmonics = 7
+
+Note on Jacobian FD step
+------------------------
+The tanh regularisation (eps=6e-7) makes Q ~ 1e-8.  The default finite-
+difference step sqrt(machine_eps) ≈ 1.5e-8 would be larger than Q itself,
+producing a meaningless Jacobian.  We patch _FD_STEP = 1.5e-15 so the
+perturbation is always small relative to the solution magnitude.
 
 Outputs
 -------
 examples/07_beam_tanh_friction/output/frf.png
-  - FRF at tip node (node 10)
+  - FRF at tip node (node 8), a_rms vs omega
 examples/07_beam_tanh_friction/output/mode_shape.png
   - Mode shape (transverse displacement DOFs) at resonance peak
 
 Printed summary
 ---------------
-- Resonance frequency
-- Tip amplitude at resonance
+- Linear first natural frequency
+- Resonance frequency and tip a_rms at resonance
 """
 
 from __future__ import annotations
@@ -46,6 +55,13 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT / "src"))
 
+# Patch FD step BEFORE importing hb_residual so the override takes effect.
+# Default sqrt(eps_machine) ≈ 1.5e-8 is larger than Q ~ 1e-8 for this example.
+import nlvib.solvers.harmonic_balance as _hb_mod
+_hb_mod._FD_STEP = 1.5e-15
+
+from scipy.optimize import fsolve
+
 from nlvib.systems.fe_beam import FE_EulerBernoulliBeam
 from nlvib.nonlinearities.elements import tanh_dry_friction
 from nlvib.solvers.harmonic_balance import hb_residual
@@ -58,28 +74,30 @@ OUTPUT_DIR = Path(__file__).parent / "output"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
-# System definition
+# System definition (MATLAB: beam_tanhDryFriction_advanced.m / beam.mat)
 # ---------------------------------------------------------------------------
-N_ELEMENTS = 19                  # MATLAB: 10 (n_nodes=20 → n_elements=19)
-L_BEAM     = 0.7                 # MATLAB: 1.0 (len=0.7)
-E_MOD      = 2.05e11             # MATLAB: 2.1e11 (E=2.05e11)
-I_AREA     = 3.201e-9            # MATLAB: 1e-8 (I=0.014*0.014^3/12≈3.201e-9)
-RHO        = 7800.0
-A_SECT     = 1.96e-4             # MATLAB: 1e-4 (A=0.014*0.014=1.96e-4)
+N_ELEMENTS = 8         # 9 nodes → 8 elements → 16 free DOFs (clamped-free)
+L_BEAM     = 2.0       # m  (MATLAB: len=2)
+H_HEIGHT   = 0.1       # m  (MATLAB: height = 0.05*len = 0.1)
+T_THICK    = 0.3       # m  (MATLAB: thickness = 3*height = 0.3)
+E_MOD      = 185e9     # Pa (MATLAB: E=185e9)
+RHO        = 7830.0    # kg/m^3
 BC         = "clamped-free"
 
-# Nonlinearity at midpoint node 10 (midpoint of 19 elements)
-FRICTION_F0 = 1.5                # MATLAB: 5.0 (muN=1.5)
-FRICTION_C  = 1666667.0          # MATLAB: 100.0 (c=1/eps=1/6e-7≈1666667)
-FRICTION_NODE = 10               # MATLAB: 5 (midpoint of 19 elements)
+I_AREA = H_HEIGHT**3 * T_THICK / 12   # m^4
+A_SECT = H_HEIGHT * T_THICK            # m^2
 
-# Excitation at tip (node 19)
-FORCE_AMP   = 10.0
-FORCE_NODE  = N_ELEMENTS         # = 19 (MATLAB: 10)
+FRICTION_NODE = 3      # MATLAB: inode=4 (1-indexed) → node 3 (0-indexed)
+MU_N          = 1.5    # MATLAB: muN=1.5
+EPS_TANH      = 6e-7   # MATLAB: eps=6e-7
+C_TANH        = 1.0 / EPS_TANH
 
-N_HARMONICS = 7                  # MATLAB: 3 (H=7)
-OMEGA_MIN   = 150.0
-OMEGA_MAX   = 250.0
+FORCE_NODE  = 8        # tip node (0-indexed, last free node)
+FORCE_AMP   = 0.2      # MATLAB: Fex1 amplitude
+
+N_HARMONICS = 7        # MATLAB: H=7
+OMEGA_MIN   = 110.0    # MATLAB: Om_s=370 (traces backward); sweep [110, 370]
+OMEGA_MAX   = 370.0    # MATLAB: Om_e=110
 
 beam = FE_EulerBernoulliBeam(
     n_elements=N_ELEMENTS,
@@ -91,16 +109,13 @@ beam = FE_EulerBernoulliBeam(
     bc=BC,
 )
 
-# Attach tanh friction at midpoint
-midpoint_dof = beam.find_dof(FRICTION_NODE, "w")
-nl_element   = tanh_dry_friction(f0=FRICTION_F0, c=FRICTION_C, dof_index=midpoint_dof)
+friction_dof = beam.find_dof(FRICTION_NODE, "w")
+nl_element   = tanh_dry_friction(f0=MU_N, c=C_TANH, dof_index=friction_dof)
 beam.add_nonlinear_attachment(FRICTION_NODE, "w", nl_element)
 
-# Add tip forcing
 beam.add_forcing(FORCE_NODE, "w", FORCE_AMP)
 
-# Build excitation dict for hb_residual
-tip_dof   = beam.find_dof(FORCE_NODE, "w")
+tip_dof    = beam.find_dof(FORCE_NODE, "w")
 excitation = {"dof": tip_dof, "amplitude": FORCE_AMP, "harmonic": 1}
 
 # ---------------------------------------------------------------------------
@@ -108,61 +123,70 @@ excitation = {"dof": tip_dof, "amplitude": FORCE_AMP, "harmonic": 1}
 # ---------------------------------------------------------------------------
 K_dense = beam.K.toarray()
 M_dense = beam.M.toarray()
-eigvals, eigvecs = eigh(K_dense, M_dense)
+eigvals, _ = eigh(K_dense, M_dense)
 omega1_linear = float(np.sqrt(np.abs(eigvals[0])))
-print(f"Linear first natural frequency: {omega1_linear:.2f} rad/s")
-
-# Adjust omega range if needed to bracket the resonance
-if not (OMEGA_MIN <= omega1_linear <= OMEGA_MAX):
-    # Widen the search window around the resonance
-    sweep_center = omega1_linear
-    half_width   = max(50.0, 0.3 * sweep_center)
-    omega_start  = max(1.0, sweep_center - half_width)
-    omega_end    = sweep_center + half_width
-    print(f"Adjusting frequency range to [{omega_start:.1f}, {omega_end:.1f}] rad/s")
-else:
-    omega_start = OMEGA_MIN
-    omega_end   = OMEGA_MAX
+print(f"Linear first natural frequency: {omega1_linear:.3f} rad/s  (expected ~123.341 rad/s)")
 
 # ---------------------------------------------------------------------------
-# Initial solution
+# Initial solution — linear guess + scipy.optimize.fsolve
+# ---------------------------------------------------------------------------
+# Manual Newton diverges for this problem because the tanh regularisation
+# (c ≈ 1.67e6) creates very small Q ~ 1e-8, and the step-limiter prevents
+# convergence.  scipy.optimize.fsolve uses a more robust trust-region
+# dogleg method that converges reliably for this example.
 # ---------------------------------------------------------------------------
 n_dof   = beam.n_dof
 n_total = n_dof * (2 * N_HARMONICS + 1)
-Q0      = np.zeros(n_total, dtype=np.float64)
 
-for _newton in range(40):
-    R, J = hb_residual(Q0, omega_start, beam, N_HARMONICS, excitation)
-    if np.linalg.norm(R) < 1e-8:
-        break
-    try:
-        dQ = np.linalg.solve(J, -R)
-    except np.linalg.LinAlgError:
-        dQ = np.linalg.lstsq(J, -R, rcond=None)[0]
-    # Guard against divergence
-    step_norm = np.linalg.norm(dQ)
-    if step_norm > 10.0:
-        dQ *= 10.0 / step_norm
-    Q0 += dQ
+# Linearized tanh stiffness for initial guess (valid for q << 1/c)
+k_eff_tanh = MU_N * C_TANH  # = f0 * c = MU_N / EPS_TANH ≈ 2.5e6 N/m
+K_eff = K_dense.copy()
+K_eff[friction_dof, friction_dof] += k_eff_tanh
 
+# Start continuation below the resonance (omega=110, well-conditioned side)
+omega_start = OMEGA_MIN
+D_dense = beam.D.toarray()
+Fex = np.zeros(n_dof)
+Fex[tip_dof] = FORCE_AMP
+Q1_complex = np.linalg.solve(
+    -(omega_start**2) * M_dense + 1j * omega_start * D_dense + K_eff, Fex
+)
+Q0_guess = np.zeros(n_total, dtype=np.float64)
+Q0_guess[n_dof * 1 : n_dof * 2] =  np.real(Q1_complex)
+Q0_guess[n_dof * 2 : n_dof * 3] = -np.imag(Q1_complex)
+
+def _res(Q: np.ndarray) -> np.ndarray:
+    return hb_residual(Q, omega_start, beam, N_HARMONICS, excitation)[0]
+
+def _jac(Q: np.ndarray) -> np.ndarray:
+    return hb_residual(Q, omega_start, beam, N_HARMONICS, excitation)[1]
+
+Q0, _info, ier, msg = fsolve(_res, Q0_guess, fprime=_jac, maxfev=500, full_output=True)
+R, _ = hb_residual(Q0, omega_start, beam, N_HARMONICS, excitation)
+print(f"fsolve ier={ier}: {msg}")
 print(f"Initial residual at omega={omega_start:.1f}: {np.linalg.norm(R):.3e}")
+if np.linalg.norm(R) > 1e-6:
+    raise RuntimeError(
+        f"Initial Newton solve failed: residual = {np.linalg.norm(R):.3e}. "
+        "Cannot start continuation."
+    )
 
 # ---------------------------------------------------------------------------
-# Arc-length continuation
+# Arc-length continuation — sweep from OMEGA_MIN up to OMEGA_MAX
 # ---------------------------------------------------------------------------
 def residual_fn(Q: np.ndarray, omega: float) -> tuple[np.ndarray, np.ndarray]:
     return hb_residual(Q, omega, beam, N_HARMONICS, excitation)
 
 solver = ContinuationSolver()
 opts = ContinuationOptions(
-        verbose=True,
-    ds_initial=0.5,
-    ds_min=1e-4,
-    ds_max=5.0,
-    max_steps=800,
+    verbose=True,
+    ds_initial=5.0,
+    ds_min=0.5,
+    ds_max=8.0,    # cap at 8 rad/s so the resonance peak (~195 rad/s) is sampled
+    max_steps=300,
     newton_tol=1e-6,
-    lambda_min=omega_start,
-    lambda_max=omega_end,
+    lambda_min=OMEGA_MIN - 5.0,
+    lambda_max=OMEGA_MAX + 5.0,
 )
 result = solver.run(residual_fn, Q0, omega_start, opts)
 
@@ -170,45 +194,41 @@ print(f"Continuation: {result.n_steps} steps, converged={result.converged}")
 print(f"  Termination: {result.message}")
 
 # ---------------------------------------------------------------------------
-# Post-process: extract FRF at tip DOF
+# Post-process: extract a_rms at tip DOF
+# MATLAB formula: a_rms = sqrt(sum(Qtip^2)) / sqrt(2)
+# where Qtip = [c0, c1, s1, c2, s2, ...] for tip DOF across all harmonics
 # ---------------------------------------------------------------------------
 solutions = result.solutions  # (n_steps, n_total + 1)
 omegas    = solutions[:, -1]
-stability = result.stability
+Q_all     = solutions[:, :-1]  # (n_steps, n_dof*(2H+1))
 
-cos1_tip = solutions[:, n_dof * 1 + tip_dof]
-sin1_tip = solutions[:, n_dof * 2 + tip_dof]
-amp_tip  = np.sqrt(cos1_tip**2 + sin1_tip**2)
+# Reshape to (n_steps, 2H+1, n_dof) and extract tip DOF
+Qtip_all = Q_all.reshape(Q_all.shape[0], 2 * N_HARMONICS + 1, n_dof)[:, :, tip_dof]
+a_rms    = np.sqrt(np.sum(Qtip_all**2, axis=1)) / np.sqrt(2)
 
-if len(amp_tip) > 0:
-    peak_idx       = int(np.argmax(amp_tip))
-    peak_amp_tip   = float(amp_tip[peak_idx])
-    resonance_freq = float(omegas[peak_idx])
+# Filter to swept range
+mask   = (omegas >= OMEGA_MIN) & (omegas <= OMEGA_MAX)
+omegas_plot = omegas[mask]
+a_rms_plot  = a_rms[mask]
+
+if len(a_rms_plot) > 0:
+    peak_idx       = int(np.argmax(a_rms_plot))
+    peak_a_rms     = float(a_rms_plot[peak_idx])
+    resonance_freq = float(omegas_plot[peak_idx])
 else:
-    peak_idx       = 0
-    peak_amp_tip   = float("nan")
+    peak_a_rms     = float("nan")
     resonance_freq = float("nan")
 
 # ---------------------------------------------------------------------------
-# Plot: FRF at tip
+# Plot: FRF at tip  (matches MATLAB save_data.m style)
 # ---------------------------------------------------------------------------
 fig_frf, ax_frf = plt.subplots(figsize=(8, 5))
-for i in range(len(omegas) - 1):
-    is_stable = not bool(stability[i])
-    color = "tab:blue" if is_stable else "tab:red"
-    ls    = "-" if is_stable else "--"
-    ax_frf.plot(omegas[i:i+2], amp_tip[i:i+2], color=color, linestyle=ls, linewidth=1.5)
-
-from matplotlib.lines import Line2D
-handles = [
-    Line2D([0], [0], color="tab:blue", linestyle="-",  label="stable"),
-    Line2D([0], [0], color="tab:red",  linestyle="--", label="unstable"),
-]
-ax_frf.legend(handles=handles)
-ax_frf.set_xlabel(r"Excitation frequency $\Omega$ (rad/s)")
-ax_frf.set_ylabel(r"Tip amplitude $|w_{\rm tip}|$ (harmonic 1)")
-ax_frf.set_title("Example 07 — Beam Tanh Friction FRF (tip)")
-ax_frf.axvline(resonance_freq, color="gray", linestyle=":", linewidth=0.8)
+ax_frf.semilogy(omegas_plot, a_rms_plot, "g-", linewidth=1.5, label="HB")
+ax_frf.legend(loc="upper right")
+ax_frf.set_xlabel("excitation frequency")
+ax_frf.set_ylabel("tip displacement amplitude")
+ax_frf.set_xlim(OMEGA_MIN, OMEGA_MAX)
+ax_frf.grid(True, which="both", linestyle="--", linewidth=0.4, alpha=0.6)
 
 frf_path = OUTPUT_DIR / "frf.png"
 fig_frf.tight_layout()
@@ -219,23 +239,17 @@ print(f"\nPlot saved: {frf_path}")
 # ---------------------------------------------------------------------------
 # Mode shape at resonance peak
 # ---------------------------------------------------------------------------
-# Extract displacement Fourier coefficients (cosine h=1 block) at peak step
-Q_peak   = solutions[peak_idx, :n_total]  # (n_total,)
+if len(a_rms_plot) > 0:
+    global_peak_idx = int(np.where(mask)[0][peak_idx])
+    Q_peak = solutions[global_peak_idx, :n_total]
+else:
+    global_peak_idx = 0
+    Q_peak = solutions[0, :n_total]
 
-# Transverse displacement DOFs (dof_type="w") are at even indices in free_dofs
-# We extract the amplitude (sqrt(cos^2 + sin^2)) for each "w" DOF
-free_dofs = beam.free_dofs  # global unreduced DOF indices
+node_positions = [0.0]
+mode_shape_amp = [0.0]
 
-# Collect (node_position, amplitude) pairs for "w" DOFs
-node_positions = []
-mode_shape_amp = []
-
-n_nodes = N_ELEMENTS + 1
-# Include clamped node 0 at position 0 with displacement = 0
-node_positions.append(0.0)
-mode_shape_amp.append(0.0)
-
-for node_i in range(1, n_nodes):
+for node_i in range(1, N_ELEMENTS + 1):
     try:
         reduced_dof = beam.find_dof(node_i, "w")
         cos1_val    = Q_peak[n_dof * 1 + reduced_dof]
@@ -245,7 +259,6 @@ for node_i in range(1, n_nodes):
         node_positions.append(node_pos)
         mode_shape_amp.append(amp_val)
     except ValueError:
-        # DOF is constrained — skip
         pass
 
 node_positions_arr = np.array(node_positions)
@@ -258,7 +271,7 @@ ax_mode.plot(node_positions_arr, mode_shape_arr, "o-", color="tab:green",
              linewidth=1.5, label=f"mode shape at resonance ({resonance_freq:.1f} rad/s)")
 ax_mode.fill_between(node_positions_arr, mode_shape_arr, alpha=0.2, color="tab:green")
 ax_mode.set_xlabel("Position along beam (m)")
-ax_mode.set_ylabel(r"Transverse amplitude (m)")
+ax_mode.set_ylabel("Transverse amplitude (m)")
 ax_mode.set_title("Example 07 — Mode Shape at Resonance Peak")
 ax_mode.legend()
 ax_mode.grid(True, alpha=0.3)
@@ -275,7 +288,10 @@ print(f"Plot saved: {mode_path}")
 print("\n" + "=" * 55)
 print("  Example 07 — Beam Tanh Friction Summary")
 print("=" * 55)
-print(f"  Linear 1st natural frequency : {omega1_linear:.2f} rad/s")
-print(f"  Resonance frequency (HB)     : {resonance_freq:.2f} rad/s")
-print(f"  Tip amplitude at resonance   : {peak_amp_tip:.6e} m")
+print(f"  n_dof                        : {n_dof}")
+print(f"  Friction DOF (node {FRICTION_NODE})        : {friction_dof}  (expected 4)")
+print(f"  Tip DOF (node {FORCE_NODE})             : {tip_dof}  (expected 14)")
+print(f"  Linear omega_1               : {omega1_linear:.3f} rad/s")
+print(f"  Resonance frequency (HB)     : {resonance_freq:.3f} rad/s")
+print(f"  Tip a_rms at resonance       : {peak_a_rms:.6e} m")
 print("=" * 55)

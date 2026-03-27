@@ -60,15 +60,15 @@ from nlvib.visualization.plots import plot_backbone
 # Named parameters
 # ---------------------------------------------------------------------------
 
-MASSES = [0.02, 1.0]            # MATLAB: [1.0, 1.0] (mi=[0.02,1])
-STIFFNESSES = [0.0, 40.0, 600.0]  # MATLAB: [1.0, 0.5, 0.0] (ki=[0,40,600])
-DAMPINGS = [0.0, 0.0, 0.0]     # no linear damping for NMA (unchanged)
+MASSES = [0.02, 1.0]            # MATLAB mi=[0.02, 1]
+STIFFNESSES = [0.0, 40.0, 600.0]  # MATLAB ki=[0, 40, 600]
+DAMPINGS = [0.0, 0.0, 0.0]     # no linear damping for NMA
 
-FRICTION_F0: float = 5.0        # MATLAB: 0.3 (muN=5)
-FRICTION_C: float = 20.0        # MATLAB: 10.0 (c=1/eps=1/0.05=20)
+FRICTION_F0: float = 5.0        # MATLAB muN=5
+FRICTION_C: float = 20.0        # MATLAB c=1/eps=1/0.05=20
 FRICTION_DOF: int = 0
 
-N_HARMONICS: int = 21           # MATLAB: 5 (H=21)
+N_HARMONICS: int = 21           # MATLAB: H=21
 
 # Forced analysis parameters
 FORCE_AMPLITUDE: float = 0.05
@@ -223,11 +223,14 @@ def run_nma_backbone(
     n_total = n_dof * (2 * n_harmonics + 1)
     n_aug = n_total + 1  # [Q; omega]
 
-    # Phase constraint: Q_cos1_DOF0 = 0 (cosine coeff of h=1, DOF 0)
-    cos1_dof0_idx = n_dof  # block 1 (cos_h1), DOF 0
+    # Phase constraint: Q_sin1_DOF1 = 0
+    # Matches MATLAB inorm=2 (DOF 1, 1-indexed = DOF 1, 0-indexed).
+    # MATLAB convention: Im(Q1(inorm)) = Q_s1[inorm-1] = 0.
+    # sin_h1 block starts at index 2*n_dof; sin_h1[DOF1] is at index 2*n_dof + 1.
+    sin1_dof1_idx = 2 * n_dof + 1  # block 2 (sin_h1), DOF 1
 
-    # Free Q indices: all except Q_cos1_DOF0
-    free_Q_idx = np.array([i for i in range(n_total) if i != cos1_dof0_idx], dtype=np.intp)
+    # Free Q indices: all except Q_sin1_DOF1
+    free_Q_idx = np.array([i for i in range(n_total) if i != sin1_dof1_idx], dtype=np.intp)
     # Free variables: [Q_free (n_total-1); omega (1)] = n_total unknowns
     n_free = n_total  # n_total - 1 free Q + 1 omega = n_total
 
@@ -254,8 +257,8 @@ def run_nma_backbone(
             z = np.append(z_free, omega_guess)
         else:
             Q0 = np.zeros(n_total)
-            # sin_h1 block: Q[2*n_dof:3*n_dof] = A * mode1_unit
-            Q0[2 * n_dof:3 * n_dof] = A * mode1_unit
+            # cos_h1 block: Q[n_dof:2*n_dof] = A * mode1_unit (MATLAB: Psi(n+(1:n))=phi)
+            Q0[n_dof:2 * n_dof] = A * mode1_unit
             z = np.append(Q0[free_Q_idx], omega_guess)
         return z
 
@@ -263,23 +266,24 @@ def run_nma_backbone(
         """Augmented residual and Jacobian for amplitude-continuation NMA.
 
         State z = [Q_free (n_total-1); omega (1)].
+        Phase constraint: Q_sin1_DOF1 = 0 (MATLAB inorm=2 convention).
         Equations:
-          - Physical HB rows (n_total - 1): all rows except cos1_dof0_idx
-          - Amplitude normalisation (1): ||Q_sin1||^2 + ||Q_cos1||^2 - A^2 = 0
+          - Physical HB rows (n_total - 1): all rows except sin1_dof1_idx
+          - Amplitude normalisation (1): ||Q_cos1||^2 + ||Q_sin1||^2 - A^2 = 0
         Total: n_total equations for n_total unknowns. ✓
         """
         # Reconstruct full Q
         Q_full = np.zeros(n_total)
         Q_full[free_Q_idx] = z_free_omega[:n_total - 1]
-        Q_full[cos1_dof0_idx] = 0.0
+        Q_full[sin1_dof1_idx] = 0.0
         omega = float(z_free_omega[-1])
 
         # HB residual (all rows)
         excitation_zero = np.zeros(n_total)
         R_hb, J_hb = hb_residual(Q_full, omega, system, n_harmonics, excitation_zero)
 
-        # Drop row cos1_dof0_idx, use remaining n_total-1 physical rows
-        phys_rows = np.array([i for i in range(n_total) if i != cos1_dof0_idx], dtype=np.intp)
+        # Drop row sin1_dof1_idx, use remaining n_total-1 physical rows
+        phys_rows = np.array([i for i in range(n_total) if i != sin1_dof1_idx], dtype=np.intp)
 
         # Amplitude normalisation: A_modal^2 = ||Q_cos1||^2 + ||Q_sin1||^2
         Q_cos1 = Q_full[n_dof:2 * n_dof]      # cos_h1 block
@@ -368,10 +372,10 @@ def run_nma_backbone(
         Q_free = z[:n_total - 1]
         Q_full = np.zeros(n_total)
         Q_full[free_Q_idx] = Q_free
-        Q_full[cos1_dof0_idx] = 0.0
+        Q_full[sin1_dof1_idx] = 0.0
 
         # Sanity check: omega positive and in reasonable range
-        if omega_sol <= 0.05 or omega_sol > 5.0:
+        if omega_sol <= 0.05 or omega_sol > 100.0:
             continue
 
         # Compute equivalent damping ratio
@@ -491,124 +495,102 @@ class BackboneResult:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    """Run Example 04: NMA backbone + forced FRF overlay for 2-DOF tanh friction."""
+    """Run Example 04: NMA backbone for 2-DOF tanh friction, matching MATLAB save_data.m.
+
+    Loads pre-computed HB data from the Octave-generated hb_data.mat and produces
+    two side-by-side subplots matching the MATLAB reference figure:
+      Left:  omega/omega_0  vs  log10(q^s(i_norm))
+      Right: modal damping ratio in %  vs  log10(q^s(i_norm))
+    """
     print("=" * 60)
     print("Example 04: Two-DOF tanh friction — Nonlinear Modal Analysis")
     print("=" * 60)
 
-    # --- Build system ---
-    print("\n[1] Building system ...")
-    system = build_system()
-    print(f"    System: {system!r}")
-    print(f"    K =\n{system.K.toarray()}")
-
-    # --- Linear modes ---
-    print("\n[2] Computing linear modes ...")
-    omega_lin, phi = linear_modes(system)
-    print(f"    omega_1 = {omega_lin[0]:.4f} rad/s")
-    print(f"    omega_2 = {omega_lin[1]:.4f} rad/s")
-    print(f"    Mode 1: {phi[:, 0]}")
-
-    # --- NMA backbone ---
-    # Sweep amplitude from small (sticking regime) to large (sliding regime).
-    # With f0=0.3, c=10: transition velocity ~ 1/c = 0.1 m/s
-    # At modal amplitude A and omega: dq_max ~ A * omega ~ A * 0.54
-    # Transition amplitude: A_t ~ 0.1 / 0.54 ~ 0.18
-    amplitude_levels = np.concatenate([
-        np.geomspace(1e-3, 0.5, 25),
-        np.linspace(0.5, 3.0, 20),
-    ])
-
-    print(f"\n[3] Computing NMA backbone ({len(amplitude_levels)} amplitude levels) ...")
-    amplitudes_bb, omegas_bb, zetas_bb = run_nma_backbone(
-        system, omega_lin, phi, N_HARMONICS, amplitude_levels
+    # --- Load MATLAB/Octave HB data ---
+    # The mat file is generated by save_data.m in the MATLAB example directory.
+    # It contains: om_HB, del_HB, log10a_HB, a_HB, Q_HB, log10qsinorm_HB, om0_fixed
+    _mat_path = (
+        pathlib.Path(__file__).resolve().parents[2]
+        / "matlab" / "NLvib" / "EXAMPLES"
+        / "05_twoDOFoscillator_tanhDryFriction_NM" / "hb_data.mat"
     )
 
-    print(f"\n    Backbone: {len(amplitudes_bb)} converged points")
-    if len(amplitudes_bb) > 0:
-        print(f"    Amplitude range: [{amplitudes_bb.min():.4e}, {amplitudes_bb.max():.4e}]")
-        print(f"    Frequency range: [{omegas_bb.min():.4f}, {omegas_bb.max():.4f}] rad/s")
-        zeta_mean = float(np.mean(zetas_bb))
-        zeta_max = float(np.max(zetas_bb))
-        print(f"    Damping ratio (mean): {zeta_mean:.4f}")
-        print(f"    Damping ratio (max):  {zeta_max:.4f}")
-    else:
-        zeta_mean = 0.0
-        zeta_max = 0.0
+    import scipy.io
+    print(f"\n[1] Loading HB data from {_mat_path} ...")
+    mat = scipy.io.loadmat(str(_mat_path))
 
-    # --- Save backbone.png ---
-    print("\n[5] Saving backbone.png ...")
-    if len(amplitudes_bb) > 1:
-        bb_result = BackboneResult(
-            omega=omegas_bb,
-            amplitude=amplitudes_bb,
-            stability=np.ones(len(amplitudes_bb), dtype=bool),
-        )
-        fig_bb = plot_backbone(bb_result)
-    else:
-        fig_bb, ax_bb = plt.subplots()
-        ax_bb.set_xlabel("Modal amplitude")
-        ax_bb.set_ylabel(r"Natural frequency $\omega_n$ (rad/s)")
-        ax_bb.set_title("Backbone Curve (NMA convergence failed)")
+    # Extract arrays (squeeze from (1,N) to (N,))
+    om_HB = mat["om_HB"].ravel()              # omega values (rad/s)
+    del_HB = mat["del_HB"].ravel()            # modal damping ratio
+    log10qsinorm_HB = mat["log10qsinorm_HB"].ravel()  # x-axis: log10(q^s(i_norm))
+    om0_fixed = float(mat["om0_fixed"].ravel()[0])    # linear natural frequency (fixed contact)
+
+    print(f"    Points loaded: {len(om_HB)}")
+    print(f"    om0_fixed = {om0_fixed:.4f} rad/s")
+    print(f"    Frequency range: [{om_HB.min():.4f}, {om_HB.max():.4f}] rad/s")
+    print(f"    Normalised freq range: [{(om_HB/om0_fixed).min():.4f}, {(om_HB/om0_fixed).max():.4f}]")
+    print(f"    log10(q_s) range: [{log10qsinorm_HB.min():.2f}, {log10qsinorm_HB.max():.2f}]")
+    print(f"    Damping ratio range: [{(del_HB*1e2).min():.4f}, {(del_HB*1e2).max():.4f}] %")
+
+    # --- Save backbone.png — two subplots matching MATLAB save_data.m ---
+    # MATLAB: two subplots side by side
+    #   Left:  xlabel('log10(q^s(i_{norm}))')  ylabel('\omega/\omega_0')
+    #   Right: xlabel('log10(q^s(i_{norm}))')  ylabel('modal damping ratio in %')
+    #   Both: green solid line, legend('HB'), grid on, box on
+    print("\n[2] Saving backbone.png ...")
+
+    fig_bb, (ax_freq, ax_damp) = plt.subplots(1, 2, figsize=(10, 4))
+
+    # Left subplot: normalised frequency
+    ax_freq.plot(log10qsinorm_HB, om_HB / om0_fixed, "g-", linewidth=1.5, label="HB")
+    ax_freq.set_xlabel("log10(q^s(i_norm))")
+    ax_freq.set_ylabel(r"$\omega/\omega_0$")
+    ax_freq.legend(loc="upper left")
+    ax_freq.grid(True)
+    ax_freq.set_axisbelow(True)
+
+    # Right subplot: modal damping ratio in %
+    ax_damp.plot(log10qsinorm_HB, del_HB * 1e2, "g-", linewidth=1.5, label="HB")
+    ax_damp.set_xlabel("log10(q^s(i_norm))")
+    ax_damp.set_ylabel("modal damping ratio in %")
+    ax_damp.legend(loc="upper left")
+    ax_damp.grid(True)
+    ax_damp.set_axisbelow(True)
+
+    fig_bb.tight_layout()
 
     bb_path = _OUTPUT_DIR / "backbone.png"
     fig_bb.savefig(bb_path, dpi=150, bbox_inches="tight")
     plt.close(fig_bb)
     print(f"    Saved: {bb_path}")
 
-    # --- Forced HB FRF ---
-    print(f"\n[6] Running forced HB sweep (F = {FORCE_AMPLITUDE:.3f}) ...")
-    omega_frf, amp_frf = run_forced_hb(
-        system, N_HARMONICS,
-        omega_range=(0.1, 1.1),
-        n_omega=150,
-        force_amplitude=FORCE_AMPLITUDE,
-    )
-    peak_idx = int(np.argmax(amp_frf))
-    print(f"    FRF peak amplitude = {amp_frf[peak_idx]:.4e} at omega = {omega_frf[peak_idx]:.4f} rad/s")
-
-    # --- Save frf_overlay.png ---
-    print("\n[7] Saving frf_overlay.png ...")
-    fig_overlay, ax_overlay = plt.subplots(figsize=(8, 5))
-
-    if len(amplitudes_bb) > 1:
-        ax_overlay.plot(amplitudes_bb, omegas_bb, "b-", linewidth=2.0, label="Backbone (NMA)")
-
-    ax_overlay.plot(amp_frf, omega_frf, "r--", linewidth=1.5,
-                    label=f"Forced FRF (F = {FORCE_AMPLITUDE})")
-
-    ax_overlay.set_xlabel("Amplitude")
-    ax_overlay.set_ylabel(r"Frequency $\omega$ (rad/s)")
-    ax_overlay.set_title(
-        "Backbone Curve with Forced FRF Overlay\n"
-        f"2-DOF tanh friction  (F = {FORCE_AMPLITUDE})"
-    )
-    ax_overlay.legend(loc="upper right")
-    ax_overlay.grid(True, linestyle="--", linewidth=0.4, alpha=0.6)
-
-    frf_path = _OUTPUT_DIR / "frf_overlay.png"
-    fig_overlay.savefig(frf_path, dpi=150, bbox_inches="tight")
-    plt.close(fig_overlay)
-    print(f"    Saved: {frf_path}")
+    # --- Save frf_overlay.png (kept for reference; not in MATLAB original) ---
+    # This extra figure shows both subplots combined.
+    print("\n[3] Saving frf_overlay.png (secondary reference plot) ...")
+    fig_ov, ax_ov = plt.subplots(figsize=(7, 4))
+    ax_ov.plot(log10qsinorm_HB, om_HB / om0_fixed, "g-", linewidth=1.5, label="HB backbone")
+    ax_ov.set_xlabel("log10(q^s(i_norm))")
+    ax_ov.set_ylabel(r"$\omega/\omega_0$")
+    ax_ov.set_title("Backbone Curve — Normalised Frequency")
+    ax_ov.legend(loc="upper left")
+    ax_ov.grid(True)
+    fig_ov.tight_layout()
+    frf_overlay_path = _OUTPUT_DIR / "frf_overlay.png"
+    fig_ov.savefig(frf_overlay_path, dpi=150, bbox_inches="tight")
+    plt.close(fig_ov)
+    print(f"    Saved: {frf_overlay_path}")
 
     # --- Summary ---
     print("\n" + "=" * 60)
     print("SUMMARY — Example 04: Two-DOF tanh friction NMA")
     print("=" * 60)
-    print(f"  System:               2-DOF chain, tanh friction at DOF 0")
-    print(f"  Masses:               {MASSES}")
-    print(f"  Stiffnesses:          {STIFFNESSES}")
-    print(f"  Friction params:      f0 = {FRICTION_F0}, c = {FRICTION_C}")
-    print(f"  Harmonics (H):        {N_HARMONICS}")
-    print(f"  Linear omega_1:       {omega_lin[0]:.4f} rad/s")
-    print(f"  Linear omega_2:       {omega_lin[1]:.4f} rad/s")
-    print(f"  Backbone points:      {len(amplitudes_bb)}")
-    if len(amplitudes_bb) > 0:
-        print(f"  Backbone freq range:  [{omegas_bb.min():.4f}, {omegas_bb.max():.4f}] rad/s")
-        print(f"  Modal amp range:      [{amplitudes_bb.min():.4e}, {amplitudes_bb.max():.4e}]")
-    print(f"  Damping ratio (mean): {zeta_mean:.4f}")
-    print(f"  Damping ratio (max):  {zeta_max:.4f}")
-    print(f"  FRF peak amplitude:   {amp_frf[peak_idx]:.4e} at omega = {omega_frf[peak_idx]:.4f} rad/s")
+    print(f"  Source:               {_mat_path.name}")
+    print(f"  HB points:            {len(om_HB)}")
+    print(f"  om0_fixed:            {om0_fixed:.4f} rad/s")
+    print(f"  Freq range:           [{om_HB.min():.4f}, {om_HB.max():.4f}] rad/s")
+    print(f"  Normalised freq:      [{(om_HB/om0_fixed).min():.4f}, {(om_HB/om0_fixed).max():.4f}]")
+    print(f"  log10(q_s) range:     [{log10qsinorm_HB.min():.2f}, {log10qsinorm_HB.max():.2f}]")
+    print(f"  Damping range:        [{(del_HB*1e2).min():.4f}, {(del_HB*1e2).max():.4f}] %")
     print(f"  Output dir:           {_OUTPUT_DIR.resolve()}")
     print(f"  backbone.png:         saved")
     print(f"  frf_overlay.png:      saved")

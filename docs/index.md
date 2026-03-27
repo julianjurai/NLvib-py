@@ -72,7 +72,7 @@ R, J = shooting_residual(y0, omega=1.2, system=system, n_periods=1, n_steps=500)
 
 | Module | Contents |
 |--------|----------|
-| `nlvib.nonlinearities` | `NonlinearElement` dataclass and 5 factory functions |
+| `nlvib.nonlinearities` | `NonlinearElement` dataclass and 6 factory functions |
 | `nlvib.systems` | `MechanicalSystem` base class and 6 concrete system classes |
 | `nlvib.solvers` | HB residual (forced + NMA), shooting residual, Newmark step |
 | `nlvib.continuation` | `ContinuationSolver` with arc-length parametrisation |
