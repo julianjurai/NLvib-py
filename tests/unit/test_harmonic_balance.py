@@ -337,7 +337,7 @@ class TestNMA:
         k3 = 1.0
         sys = _make_duffing(m=1.0, d_ratio=0.0, k=1.0, k3=k3)
         n_harmonics = 1
-        F_amp = 0.0  # no forcing for NMA
+        # No forcing for NMA (backbone computation)
 
         # Choose a backbone point: A_sine = 0.5 → ω² = 1 + 0.75*0.25 = 1.1875
         A_sine = 0.5

@@ -55,10 +55,10 @@ _TOL_RELATIVE = 0.01
 # ---------------------------------------------------------------------------
 
 
-def _analytical_omega(beta_L: np.ndarray, E: float, I: float, rho: float,
+def _analytical_omega(beta_L: np.ndarray, E: float, I_xx: float, rho: float,
                        A: float, L: float) -> np.ndarray:
     """Compute analytical cantilever eigenfrequencies [rad/s]."""
-    return beta_L**2 * np.sqrt(E * I / (rho * A * L**4))
+    return beta_L**2 * np.sqrt(E * I_xx / (rho * A * L**4))
 
 
 def _fe_eigenfreqs(beam: FE_EulerBernoulliBeam, n_modes: int) -> np.ndarray:

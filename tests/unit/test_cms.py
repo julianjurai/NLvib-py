@@ -117,7 +117,6 @@ class TestCraigBampton:
         boundary_dofs: list[int],
     ) -> None:
         """T must have shape (n_full, n_b + n_internal_modes)."""
-        n_b = len(boundary_dofs)
         reduced, T = craig_bampton(beam, boundary_dofs, _N_INTERNAL_CB)
         assert T.shape == (beam.n_dof, reduced.n_dof), (
             f"T.shape expected {(beam.n_dof, reduced.n_dof)}, got {T.shape}"

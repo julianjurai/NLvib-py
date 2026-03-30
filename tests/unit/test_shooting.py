@@ -128,7 +128,6 @@ def _newmark_chain(
     y_final : state at t0 + n_steps*dt
     ddq_final : acceleration at t0 + n_steps*dt
     """
-    import numpy as np
     from nlvib.solvers.shooting import newmark_step as _step
 
     y = y0.copy()
@@ -198,7 +197,6 @@ class TestNewmarkVsSolveIvp:
         omega, f_amp = self.OMEGA, self.F_AMP
 
         T = 2.0 * np.pi / omega
-        dt = T / self.N_STEPS_PER_PERIOD
         n_total = self.N_PERIODS * self.N_STEPS_PER_PERIOD
         t_eval = np.linspace(0.0, self.N_PERIODS * T, n_total + 1)
 

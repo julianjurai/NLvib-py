@@ -147,7 +147,6 @@ class TestAFTTransform:
         """f(q) = k·q for pure cosine input → output same harmonic, scaled by k."""
         k = 3.5
         h_test = 2
-        t = np.linspace(0, 2 * np.pi, N_TIME, endpoint=False)
         # Build coefficient vector for q(t) = cos(h_test * t)
         Q = np.zeros(2 * H + 1)
         Q[2 * h_test - 1] = 1.0   # a_{h_test} = 1
