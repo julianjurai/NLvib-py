@@ -234,7 +234,7 @@ amp_bb     = amp_tip_py[valid_mask]
 # ---------------------------------------------------------------------------
 # Load MATLAB reference
 # ---------------------------------------------------------------------------
-_mat_dir = _REPO_ROOT / "matlab/NLvib/EXAMPLES/09_beam_cubicSpring_NM"
+_mat_dir = _REPO_ROOT / "matlab_src/EXAMPLES/09_beam_cubicSpring_NM"
 _mat_data = scipy.io.loadmat(_mat_dir / "hb_data.mat")
 omega_m_bb    = _mat_data["om_HB"].ravel()
 amp_tip_m     = _mat_data["amp_tip_HB"].ravel()

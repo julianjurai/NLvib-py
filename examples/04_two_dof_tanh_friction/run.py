@@ -511,7 +511,7 @@ def main() -> None:
     # It contains: om_HB, del_HB, log10a_HB, a_HB, Q_HB, log10qsinorm_HB, om0_fixed
     _mat_path = (
         pathlib.Path(__file__).resolve().parents[2]
-        / "matlab" / "NLvib" / "EXAMPLES"
+        / "matlab_src" / "EXAMPLES"
         / "05_twoDOFoscillator_tanhDryFriction_NM" / "hb_data.mat"
     )
 
