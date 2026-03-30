@@ -1,61 +1,35 @@
-# NLvib — Python
+# NLvib-py
 
-A Python port of **NLvib**, the MATLAB toolbox for nonlinear vibration analysis developed at the University of Stuttgart.
+A Python port of **NLvib**, the MATLAB toolbox for nonlinear vibration analysis developed at the University of Stuttgart (Krack & Groß, 2019).
 
-Implements harmonic balance, shooting method, and arc-length continuation for analyzing systems with nonlinear vibrations.
-
-## Attribution
-
-Original MATLAB toolbox by **Prof. Dr.-Ing. Malte Krack** and **Dr.-Ing. Johann Groß**,
-Institute for Aircraft Propulsion (ILA), University of Stuttgart.
-
-- Website: https://www.ila.uni-stuttgart.de/nlvib/
-- Source: https://github.com/maltekrack/NLvib
-- Reference: Krack M. & Gross J. (2019). *Harmonic Balance for Nonlinear Vibration Problems*. Springer.
-
-License: MIT. See [LICENSE](LICENSE) for details.
+Implements harmonic balance (HB), shooting method, and arc-length continuation for analyzing systems with nonlinear steady-state vibrations.
 
 ---
 
-## What this port includes
+## Features
 
-| Module | Status |
-|--------|--------|
-| Nonlinear elements (cubic spring, friction, unilateral, polynomial) | In progress |
-| Mechanical system classes (1-DOF, chain, FE beam, FE rod) | Planned |
-| Harmonic balance residual + AFT | Planned |
-| Shooting residual + Newmark integrator | Planned |
-| Arc-length continuation solver | Planned |
-| CMS model reduction | Planned |
-| All 12 canonical examples as Python scripts | Planned |
-| Jupyter notebooks for each example | Planned |
-
-See `TASKS.md` for the full dependency graph and current state.
+| Module | Description |
+|--------|-------------|
+| `nlvib.nonlinearities` | Cubic spring, unilateral spring, tanh/elastic dry friction, polynomial stiffness |
+| `nlvib.systems` | 1-DOF, chain of oscillators, FE beam, FE rod |
+| `nlvib.solvers` | Harmonic balance residual + AFT, shooting residual + Newmark integrator |
+| `nlvib.continuation` | Pseudo-arc-length continuation with fold detection and adaptive step control |
+| `nlvib.io` | CalculiX mesh/matrix IO |
+| Examples | 8 canonical examples as runnable Python scripts |
+| Notebooks | Jupyter demo notebooks + MATLAB/Python comparison notebooks |
 
 ---
 
-## Setup
+## Installation
 
-### Requirements
-
-- Python ≥ 3.11
-- numpy ≥ 1.26
-- scipy ≥ 1.12
-- matplotlib ≥ 3.8
-
-### Install (development)
+Requires Python ≥ 3.11.
 
 ```bash
-# Clone this repo
-git clone <this-repo>
-cd nonlinear_vibration_analysis_toolbox
-
-# Create and activate a virtual environment
+git clone https://github.com/julianjurai/NLvib-py.git
+cd NLvib-py
 python -m venv .venv
 source .venv/bin/activate      # macOS/Linux
 # .venv\Scripts\activate       # Windows
-
-# Install in editable mode with dev dependencies
 pip install -e ".[dev]"
 ```
 
@@ -65,112 +39,104 @@ pip install -e ".[dev]"
 pytest
 ```
 
-### Run a specific example
+### Run an example
 
 ```bash
-python examples/01_duffing/run.py
+python examples/01_Duffing/run.py
 ```
 
 ---
 
-## Generating MATLAB reference outputs (for validation)
+## Examples
 
-This toolbox validates its results against the original MATLAB implementation.
-To generate the reference fixtures locally:
-
-### Step 1 — Download the MATLAB source
-
-```bash
-bash tools/fetch_matlab_source.sh
-```
-
-This clones the original NLvib MATLAB repo (NLvib-Basic branch) into `tools/NLvib_matlab/`.
-The MATLAB source is not bundled here — it is fetched on demand.
-
-For the NLvib-PEACE extended branch:
-
-```bash
-bash tools/fetch_matlab_source.sh peace
-```
-
-### Step 2 — Run the MATLAB examples and save fixtures
-
-Requires **MATLAB** or **GNU Octave** on your PATH.
-
-```bash
-# Auto-detects matlab or octave
-python tools/generate_fixtures.py
-
-# Specify engine explicitly
-python tools/generate_fixtures.py --engine octave
-
-# Generate one example only
-python tools/generate_fixtures.py --example 01_Duffing
-```
-
-Fixtures are saved to `tests/fixtures/*.npz` and used by the validation test suite.
-
-### Step 3 — Run validation tests
-
-```bash
-pytest tests/validation/
-```
-
-See `tests/fixtures/README.md` for fixture format and tolerance documentation.
+| # | System | Nonlinearity | Method |
+|---|--------|-------------|--------|
+| 01 | Duffing (SDOF) | Cubic spring | HB + Shooting |
+| 02 | 2-DOF chain | Cubic spring | HB |
+| 03 | 2-DOF chain | Unilateral spring | HB + Shooting |
+| 04 | 2-DOF chain | Tanh dry friction | NMA backbone |
+| 05 | Single DOF geometric | Polynomial stiffness | HB + NMA |
+| 06 | 3-DOF chain | Elastic dry friction (Jenkins) | HB |
+| 07 | FE beam | Tanh dry friction at tip | HB |
+| 08 | FE beam | Cubic spring at tip | NMA backbone |
 
 ---
 
-## Notebooks
+## Validation against MATLAB
 
-Interactive Jupyter notebooks are in `notebooks/`. Each notebook corresponds to one canonical example.
+All 8 examples are validated against Octave-executed MATLAB reference outputs.
+Comparison notebooks in `examples/comparison/` run both solvers side-by-side and overlay results.
 
-```bash
-pip install jupyter
-jupyter notebook notebooks/
+| Example | Peak amplitude error | Peak frequency error |
+|---------|---------------------|---------------------|
+| 01 Duffing | 0.0007% | 0.010% |
+| 02 Two-DOF cubic | 0.01% | 0.14% |
+| 03 Two-DOF unilateral | 0.027% | 0.047% |
+| 04 Two-DOF tanh NMA | <0.001% | <0.37% |
+| 05 Geometric nonlinearity | <2% (3 of 4 levels) | <1% |
+| 06 Multi-DOF Jenkins | <3.2% | <3.8% |
+| 07 Beam tanh friction | 0.29% | 0.00% |
+| 08 Beam cubic NMA | 0.14% (90th-pct) | 0.019% (ω₁) |
+
+See [`examples/comparison/CONTEXT.md`](examples/comparison/CONTEXT.md) for methodology, known limitations, and per-example technical notes.
+
+---
+
+## Project structure
+
+```
+src/nlvib/              # Python package
+├── nonlinearities/     # Force element definitions
+├── systems/            # Mechanical system classes
+├── solvers/            # HB residual, shooting residual
+├── continuation/       # Arc-length continuation
+├── io/                 # CalculiX mesh/matrix IO
+└── utils/              # FFT transforms, scaling, linear algebra
+
+examples/               # All Python examples and notebooks
+├── demo/               # Tutorial Jupyter notebooks
+├── comparison/         # MATLAB vs Python comparison notebooks
+└── 01_Duffing/, ...    # Runnable Python scripts (8 examples)
+
+matlab_src/             # Original MATLAB source (reference)
+├── DOC/                # MATLAB documentation
+├── EXAMPLES/           # Original MATLAB examples
+└── SRC/                # Original MATLAB source code
+
+tests/
+├── unit/               # Per-function unit tests
+├── integration/        # End-to-end solver tests
+└── validation/         # Comparison against MATLAB fixtures
+
+agents/                 # Agentic development framework
+├── AGENTS.md           # Agent roles and protocols
+├── PM.md               # PM agent guide
+└── TASKS.md            # Task tracking
+
+docs/                   # Documentation
+├── user-guide/         # Conceptual guides
+├── examples/           # Example documentation
+└── api/                # API reference
 ```
 
 ---
 
-## Comparison Notebooks
+## Attribution
 
-`notebooks/comparison/` contains eight notebooks that run the Python HB continuation and the
-MATLAB/Octave reference side-by-side, then overlay both curves on one figure to quantify
-numerical agreement.
+Original MATLAB toolbox by **Prof. Dr.-Ing. Malte Krack** and **Dr.-Ing. Johann Groß**,
+Institute for Aircraft Propulsion (ILA), University of Stuttgart.
 
-| Example | MATLAB source | Peak error |
-|---------|--------------|------------|
-| 01 Duffing | `EXAMPLES/01_Duffing` | 0.0007% |
-| 02 Two-DOF cubic | `EXAMPLES/02_twoDOFoscillator_cubicSpring` | 0.01% |
-| 03 Two-DOF unilateral | `EXAMPLES/03_twoDOFoscillator_unilateralSpring` | 0.08% |
-| 04 Two-DOF tanh NMA | `EXAMPLES/05_twoDOFoscillator_tanhDryFriction_NM` | 0.09% |
-| 05 Geometric nonlinearity | `EXAMPLES/06_twoSprings_geometricNonlinearity` | <1% |
-| 06 Multi-DOF multi-NL | `EXAMPLES/07_multiDOFoscillator_multipleNonlinearities` | <5% (Jenkins) |
-| 07 Beam tanh friction | `EXAMPLES/08_beam_tanhDryFriction` | 0.29% |
-| 08 Beam cubic NMA | `EXAMPLES/09_beam_cubicSpring_NM` | <5% (3-mode) |
+- Website: https://www.ila.uni-stuttgart.de/nlvib/
+- Source: https://github.com/maltekrack/NLvib
+- Reference: Krack M. & Groß J. (2019). *Harmonic Balance for Nonlinear Vibration Problems*. Springer. [doi:10.1007/978-3-030-14023-6](https://doi.org/10.1007/978-3-030-14023-6)
 
-See [`notebooks/comparison/CONTEXT.md`](notebooks/comparison/CONTEXT.md) for the full technical
-context, notebook template, and per-example notes.
+The original MATLAB commit history is preserved in the [`NLvib-Basic`](../../tree/NLvib-Basic) branch.
 
 ---
 
 ## Citing this work
 
-If you use this toolbox in published work, please cite both the original Krack & Gross (2019)
-textbook and this Python port.
-
-A machine-readable citation is available in [`CITATION.cff`](CITATION.cff). GitHub will
-surface a "Cite this repository" button in the sidebar automatically.
-
-Manual BibTeX entry for the Python port:
-
-```bibtex
-@software{nlvib_python,
-  title  = {{NLvib Python}: A Python port of the {NLvib} {MATLAB} toolbox},
-  author = {NLvib Python Contributors},
-  year   = {2026},
-  url    = {https://github.com/julianjurai/nonlinear_vibration_analysis_toolbox},
-}
-```
+A machine-readable citation is in [`CITATION.cff`](CITATION.cff). GitHub surfaces a "Cite this repository" button in the sidebar automatically.
 
 For the underlying algorithms, cite the textbook:
 
@@ -184,111 +150,18 @@ For the underlying algorithms, cite the textbook:
 }
 ```
 
----
+For this Python port:
 
-## Project structure
-
-```
-src/nlvib/
-├── nonlinearities/    # Force element definitions
-├── systems/           # Mechanical system classes
-├── solvers/           # HB residual, shooting residual
-├── continuation/      # Arc-length continuation
-├── io/                # CalculiX mesh/matrix IO
-└── utils/             # FFT transforms, scaling, linear algebra
-
-tests/
-├── unit/              # Per-function tests
-├── integration/       # End-to-end solver tests
-└── validation/        # Comparison against MATLAB fixtures
-
-examples/              # Runnable Python scripts
-notebooks/             # Jupyter notebooks
-tools/                 # MATLAB source fetcher, fixture generator
-docs/                  # API reference (auto-generated)
+```bibtex
+@software{nlvib_python,
+  title  = {{NLvib-py}: A Python port of the {NLvib} {MATLAB} toolbox},
+  year   = {2026},
+  url    = {https://github.com/julianjurai/NLvib-py},
+}
 ```
 
 ---
 
----
+## License
 
-## Starting a Development Session (Claude Code)
-
-This project uses a structured multi-agent workflow. Use these prompts at the start of each session.
-
-### 1. Orient the PM agent
-
-Paste this at the start of every session:
-
-```
-Read TASKS.md and AGENTS.md. You are the PM agent. Report:
-1. Current task status table (done / in_progress / ready / todo / blocked)
-2. What was in progress last session and its state
-3. What is unblocked and ready to assign this session
-Do not start any work yet — wait for confirmation.
-```
-
-### 2. Assign work
-
-After reviewing the status, tell Claude what to focus on:
-
-```
-PM: assign T-01 and T-02 in parallel. Start with T-01.
-```
-
-Or let the PM decide:
-
-```
-PM: assign the highest-priority unblocked tasks for this session.
-```
-
-### 3. Run an assumption sub-agent before complex implementation
-
-When a Dev agent hits an uncertain algorithmic choice:
-
-```
-Before implementing T-12, run an assumption check:
-python tools/openai_validator.py assume \
-  "In NLvib's HB method, the AFT transform uses H harmonics.
-   What numpy.fft convention matches the MATLAB fft/ifft convention used in HB_residual.m?"
-```
-
-### 4. Run the QA checklist on a completed task
-
-```
-QA: run checklist on T-01.
-Check: pytest tests/unit/test_elements.py, mypy, ruff, docstring completeness,
-and run openai_validator jacobian check on all new nonlinear elements.
-```
-
-### 5. Stop cleanly
-
-```
-PM: I am ending this session. Write the current state of all in-progress tasks
-to TASKS.md session log and confirm what is safe to resume next time.
-```
-
-### Key files to read at session start
-
-| File | Purpose |
-|------|---------|
-| `TASKS.md` | Current task state, dependency graph, session log |
-| `AGENTS.md` | Agent roles, protocols, OpenAI integration, file ownership |
-| `PROJECT_GOALS.md` | Locked goals and definition of done |
-
----
-
-## Development
-
-See `AGENTS.md` for the multi-agent development framework and `TASKS.md` for current task state and dependency graph.
-
-```bash
-# Lint
-ruff check src/
-
-# Type check
-mypy src/nlvib/
-
-# Format
-ruff format src/
-```
+MIT. See [LICENSE](LICENSE) for details.

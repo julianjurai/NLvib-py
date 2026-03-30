@@ -19,10 +19,9 @@ env/
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb
-# Allow committed notebooks in demo/, notebooks/, and notebooks/comparison/
-!demo/*.ipynb
-!notebooks/*.ipynb
-!notebooks/comparison/*.ipynb
+# Allow committed notebooks in examples/
+!examples/demo/*.ipynb
+!examples/comparison/*.ipynb
 
 # Testing / coverage
 .pytest_cache/
@@ -52,16 +51,24 @@ results/
 *.mat
 *.frd
 site/
-__pycache__/
-*.pyc
-*.pyo
-.pytest_cache/
-.mypy_cache/
-*.egg-info/
-dist/
-build/
-.eggs/
 
-
-# Matlab
+# MATLAB (ignore runtime, but not matlab_src/)
 matlab/
+
+# MATLAB generated files in matlab_src/
+# Keep .png (reference images), ignore generated data
+matlab_src/EXAMPLES/**/octave-workspace
+matlab_src/EXAMPLES/**/hb_data.mat
+matlab_src/EXAMPLES/**/save_data.m
+matlab_src/demo/**/*.png
+matlab_src/demo/**/*.mat
+
+# Example outputs
+examples/**/output/
+examples/**/*.mat
+examples/**/*.png
+examples/**/__pycache__/
+
+# Agent temporary files
+agents/.temp/
+agents/**/*.log

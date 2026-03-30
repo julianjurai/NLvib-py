@@ -38,7 +38,18 @@ plugins:
             show_submodules: false
 
 nav:
-  - Overview: index.md
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - User Guide:
+      - Nonlinear Elements: user-guide/nonlinear-elements.md
+      - Mechanical Systems: user-guide/mechanical-systems.md
+      - Harmonic Balance: user-guide/harmonic-balance.md
+      - Shooting Method: user-guide/shooting-method.md
+      - Continuation: user-guide/continuation.md
+      - Visualization: user-guide/visualization.md
+  - Examples:
+      - Overview: examples/index.md
+      - Canonical Examples: examples.md
   - API Reference:
       - Nonlinear Elements: api/nonlinearities.md
       - Mechanical Systems: api/systems.md
@@ -48,8 +59,9 @@ nav:
       - Visualization: api/visualization.md
       - IO: api/io.md
       - Utilities: api/utils.md
-  - Examples: examples.md
   - Validation: validation.md
+  - Differences from MATLAB: differences-from-matlab.md
+  - Contributing: contributing.md
 
 markdown_extensions:
   - admonition

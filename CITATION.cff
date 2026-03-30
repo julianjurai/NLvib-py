@@ -2,14 +2,13 @@ cff-version: 1.2.0
 message: >
   If you use this software in academic work, please cite it using the
   metadata below, and also cite the reference textbook by Krack & Gross (2019).
-title: "NLvib Python: A Python port of the NLvib MATLAB toolbox"
+title: "NLvib-py: A Python port of the NLvib MATLAB toolbox"
 version: "0.1.0"
-date-released: "2024-01-01"
+date-released: "2026-03-30"
 license: MIT
-repository-code: https://github.com/maltekrack/NLvib
+repository-code: https://github.com/julianjurai/NLvib-py
 authors:
-  - name: "NLvib Python Contributors"
-    alias: "julianjurai"
+  - name: "NLvib-py Contributors"
 abstract: >
   A Python port of the NLvib MATLAB toolbox for nonlinear vibration analysis.
   Implements harmonic balance (HB), the alternating frequency-time (AFT) method,
