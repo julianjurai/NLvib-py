@@ -82,6 +82,49 @@ for nb in examples/comparison/*.ipynb; do
 done
 ```
 
+## Generating the Comparison Report
+
+After running the comparison notebooks, you can generate a comprehensive validation report that summarizes all results:
+
+```bash
+# From repository root
+python tools/generate_comparison_report.py
+```
+
+This generates:
+- **`docs/comparison_report.md`** — Markdown report with summary tables, metrics, and validation status for all 8 examples
+- **`docs/images/comparison/*.png`** — All comparison plots extracted from notebook outputs (38 images)
+
+### Report Contents
+
+The auto-generated report includes:
+
+1. **Summary Table** — All 8 examples with peak errors, validation status, and runtime comparisons
+2. **Per-Example Sections**:
+   - Visual comparisons (side-by-side MATLAB vs Python plots)
+   - Metrics tables (peak amplitude/frequency errors)
+   - Validation status (✅ PASS / ❌ FAIL)
+   - Runtime comparisons and speedups
+3. **Validation Methodology** — Explanation of comparison approach
+
+### Workflow
+
+```bash
+# 1. Run/edit comparison notebooks
+jupyter notebook examples/comparison/
+
+# 2. Regenerate report with latest data
+python tools/generate_comparison_report.py
+
+# 3. View updated report
+cat docs/comparison_report.md
+# or open in GitHub for rendered markdown
+```
+
+The report automatically updates whenever you modify the notebooks — just rerun the generator script.
+
+**Note**: The generator extracts data directly from notebook outputs, so you must run the notebooks with outputs saved before generating the report.
+
 ## Notebook Structure
 
 Each comparison notebook follows this standard structure:

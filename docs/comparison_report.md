@@ -1,8 +1,8 @@
 # MATLAB vs Python Validation Report
 
-*Auto-generated from comparison notebooks in `examples/comparison/`*
+_Auto-generated from comparison notebooks in `examples/comparison/`_
 
-*Last updated: nonlinear_vibration_analysis_toolbox*
+_Last updated: nonlinear_vibration_analysis_toolbox_
 
 This report validates the Python implementation of the NLvib harmonic balance solver
 against the original MATLAB/Octave reference code. All 8 examples run both implementations
@@ -13,16 +13,16 @@ numerical accuracy.
 
 Total examples validated: **8**
 
-| Example | Peak Error | Status | Runtime (Python) | Runtime (MATLAB) | Speedup |
-|---------|------------|--------|------------------|------------------|---------|
-| Example 01: Duffing Oscillator | — | ✅ PASS | — | — | — |
-| Example 02: Two-DOF Chain of Oscillators with Cubic Spring | — | ✅ PASS | — | — | — |
-| Example 03: Two-DOF Chain of Oscillators with Unilateral Spring | 0.030% | ✅ PASS | 60.5s | 319.8s | 5.3x |
-| Example 04: Two-DOF Chain with Tanh Dry Friction: Backbone Curve (NMA) | — | ✅ PASS | — | — | — |
-| Example 05: Geometric Nonlinearity | 1.861% | ✅ PASS | — | — | 0.0x |
-| Example 06: Multi-DOF Chain with Multiple Nonlinearities | — | ✅ PASS | — | — | 0.2x |
-| Example 07: FE Euler-Bernoulli Beam with Tanh Dry Friction: HB Comparison | — | ✅ PASS | — | — | — |
-| Example 08: FE Beam with Cubic Spring: NMA Backbone Comparison | — | ✅ PASS | — | — | 0.6x |
+| Example                                                                   | Peak Error | Status  | Runtime (Python) | Runtime (MATLAB) | Speedup |
+| ------------------------------------------------------------------------- | ---------- | ------- | ---------------- | ---------------- | ------- |
+| Example 01: Duffing Oscillator                                            | —          | ✅ PASS | —                | —                | —       |
+| Example 02: Two-DOF Chain of Oscillators with Cubic Spring                | —          | ✅ PASS | —                | —                | —       |
+| Example 03: Two-DOF Chain of Oscillators with Unilateral Spring           | 0.030%     | ✅ PASS | 60.5s            | 319.8s           | 5.3x    |
+| Example 04: Two-DOF Chain with Tanh Dry Friction: Backbone Curve (NMA)    | —          | ✅ PASS | —                | —                | —       |
+| Example 05: Geometric Nonlinearity                                        | 1.861%     | ✅ PASS | —                | —                | 0.0x    |
+| Example 06: Multi-DOF Chain with Multiple Nonlinearities                  | —          | ✅ PASS | —                | —                | 0.2x    |
+| Example 07: FE Euler-Bernoulli Beam with Tanh Dry Friction: HB Comparison | —          | ✅ PASS | —                | —                | —       |
+| Example 08: FE Beam with Cubic Spring: NMA Backbone Comparison            | —          | ✅ PASS | —                | —                | 0.6x    |
 
 ## Example 01: Duffing Oscillator
 
@@ -88,10 +88,10 @@ Total examples validated: **8**
 
 ### Metrics
 
-| Metric | MATLAB | Python | |Diff| | Rel.Err% |
-|--------|-------:|-------:|-------:|---------:|
+| Metric                 |  MATLAB |   Python |          |   Diff |     | Rel.Err% |
+| ---------------------- | ------: | -------: | -------: | -----: | --- | -------- |
 | Peak amplitude (a_rms) | 0.98093 | 0.981198 | 0.000268 | 0.027% |
-| Peak frequency (rad/s) | 0.7541 | 0.7538 | 0.0004 | 0.047% |
+| Peak frequency (rad/s) |  0.7541 |   0.7538 |   0.0004 | 0.047% |
 
 ### Validation Status
 
@@ -119,10 +119,10 @@ Total examples validated: **8**
 
 ### Metrics
 
-| Metric | MATLAB | Python | |Diff| | Rel.Err% |
-|--------|-------:|-------:|-------:|---------:|
-| Peak backbone om_norm | 1.00136 | 0.999995 | 0.001363 | 0.136% |
-| Peak modal amplitude (a) | 10.1214 | 10 | 0.12138 | 1.199% |
+| Metric                   |  MATLAB |   Python |          |   Diff |     | Rel.Err% |
+| ------------------------ | ------: | -------: | -------: | -----: | --- | -------- |
+| Peak backbone om_norm    | 1.00136 | 0.999995 | 0.001363 | 0.136% |
+| Peak modal amplitude (a) | 10.1214 |       10 |  0.12138 | 1.199% |
 
 ### Validation Status
 
@@ -190,10 +190,10 @@ Total examples validated: **8**
 
 ### Metrics
 
-| Metric | MATLAB | Python | |Diff| | Rel.Err% |
-|--------|-------:|-------:|-------:|---------:|
-| Peak tip a_rms (m) | 6.70985e-08 | 6.6906e-08 | 1.925e-10 | 0.290% |
-| Peak frequency (rad/s) | 195 | 195 | 0 | 0.000% |
+| Metric                 |      MATLAB |     Python |           |   Diff |     | Rel.Err% |
+| ---------------------- | ----------: | ---------: | --------: | -----: | --- | -------- |
+| Peak tip a_rms (m)     | 6.70985e-08 | 6.6906e-08 | 1.925e-10 | 0.290% |
+| Peak frequency (rad/s) |         195 |        195 |         0 | 0.000% |
 
 ### Validation Status
 
@@ -234,11 +234,13 @@ Each comparison notebook:
 5. **Asserts validation**: Python must match MATLAB within specified tolerance (<1% or <5%)
 
 **Metrics:**
+
 - Peak amplitude error: relative difference at maximum response amplitude
 - Peak frequency error: relative difference at peak response frequency
 - Harmonic content: Fourier coefficients at fundamental and higher harmonics
 
 **Tolerances:**
+
 - Examples 01-04, 07: < 1% peak error
 - Examples 05, 06, 08: < 5% peak error (due to Galerkin truncation or hysteretic elements)
 
@@ -246,5 +248,5 @@ Each comparison notebook:
 
 ## Reference
 
-Krack, M. & Gross, J. (2019). *Harmonic Balance for Nonlinear Vibration Problems*. Springer.
+Krack, M. & Gross, J. (2019). _Harmonic Balance for Nonlinear Vibration Problems_. Springer.
 [https://doi.org/10.1007/978-3-030-14023-6](https://doi.org/10.1007/978-3-030-14023-6)

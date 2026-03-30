@@ -78,6 +78,12 @@ Comparison notebooks in `examples/comparison/` run both solvers side-by-side and
 | 07 Beam tanh friction | 0.29% | 0.00% |
 | 08 Beam cubic NMA | 0.14% (90th-pct) | 0.019% (ω₁) |
 
+**Comparison Report**: Generate a comprehensive validation report with all metrics, plots, and validation status:
+```bash
+python tools/generate_comparison_report.py
+```
+This creates `docs/comparison_report.md` with summary tables, visual comparisons, and detailed metrics for all 8 examples.
+
 See [`examples/comparison/CONTEXT.md`](examples/comparison/CONTEXT.md) for methodology, known limitations, and per-example technical notes.
 
 ---
