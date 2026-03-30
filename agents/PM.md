@@ -103,9 +103,9 @@ These tasks require Octave to be available at `/usr/local/bin/octave`. Each note
 5. Overlays both curves on one figure
 6. Asserts `|peak_py − peak_matlab| / peak_matlab < 0.05`
 
-Read `notebooks/comparison/CONTEXT.md` before starting any comparison notebook task — it contains the full template, a_rms formula, and known pitfalls.
+Read `examples/comparison/CONTEXT.md` before starting any comparison notebook task — it contains the full template, a_rms formula, and known pitfalls.
 
-**Reference implementation**: `notebooks/comparison/02_two_dof_cubic.ipynb` (template for all others).
+**Reference implementation**: `examples/comparison/02_two_dof_cubic.ipynb` (template for all others).
 
 ---
 
@@ -160,7 +160,7 @@ Before stopping, write to `TASKS.md` `## Session Log`:
 | `TASKS.md` | Task state, dependency graph, session log |
 | `AGENTS.md` | All agent roles, protocols, file ownership |
 | `PROJECT_GOALS.md` | Locked project goals, definition of done for v1.0 |
-| `notebooks/comparison/CONTEXT.md` | Full context for comparison notebook tasks T-29–T-36 |
+| `examples/comparison/CONTEXT.md` | Full context for comparison notebook tasks T-29–T-36 |
 | `src/nlvib/` | Source code under development |
 | `tests/fixtures/` | MATLAB reference outputs (ground truth) |
 

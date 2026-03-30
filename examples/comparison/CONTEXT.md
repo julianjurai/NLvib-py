@@ -1,7 +1,7 @@
 # Comparison Notebooks — Agent Context
 
 ## Goal
-Each notebook in `notebooks/comparison/` runs the **Python HB continuation** and the
+Each notebook in `examples/comparison/` runs the **Python HB continuation** and the
 **MATLAB/Octave reference** for the same example, then overlays both curves on one
 figure so numerical agreement (or discrepancy) is immediately visible.
 
@@ -11,14 +11,14 @@ figure so numerical agreement (or discrepancy) is immediately visible.
 
 | Notebook to create | MATLAB script | Python run.py |
 |--------------------|---------------|---------------|
-| `01_duffing.ipynb` | `matlab/NLvib/EXAMPLES/01_Duffing/Duffing.m` | `examples/01_duffing/run.py` |
-| `02_two_dof_cubic.ipynb` | `matlab/NLvib/EXAMPLES/02_twoDOFoscillator_cubicSpring/twoDOFoscillator_cubicSpring.m` | `examples/02_two_dof_cubic/run.py` |
-| `03_two_dof_unilateral.ipynb` | `matlab/NLvib/EXAMPLES/03_twoDOFoscillator_unilateralSpring/twoDOFoscillator_unilateralSpring.m` | `examples/03_two_dof_unilateral/run.py` |
-| `04_two_dof_tanh_friction.ipynb` | `matlab/NLvib/EXAMPLES/05_twoDOFoscillator_tanhDryFriction_NM/twoDOFoscillator_tanhDryFriction_NM.m` | `examples/04_two_dof_tanh_friction/run.py` |
-| `05_geometric_nonlinearity.ipynb` | `matlab/NLvib/EXAMPLES/06_twoSprings_geometricNonlinearity/twoSprings_geometricNonlinearity.m` | `examples/05_geometric_nonlinearity/run.py` |
-| `06_multi_dof_multi_nl.ipynb` | `matlab/NLvib/EXAMPLES/07_multiDOFoscillator_multipleNonlinearities/multiDOFoscillator_multipleNonlinearities.m` | `examples/06_multi_dof_multi_nl/run.py` |
-| `07_beam_tanh_friction.ipynb` | `matlab/NLvib/EXAMPLES/08_beam_tanhDryFriction/beam_tanhDryFriction_simple.m` | `examples/07_beam_tanh_friction/run.py` |
-| `08_beam_cubic_spring_nma.ipynb` | `matlab/NLvib/EXAMPLES/09_beam_cubicSpring_NM/beam_cubicSpring_NM1.m` | `examples/08_beam_cubic_spring_nma/run.py` |
+| `01_duffing.ipynb` | `matlab_src/EXAMPLES/01_Duffing/Duffing.m` | `examples/01_duffing/run.py` |
+| `02_two_dof_cubic.ipynb` | `matlab_src/EXAMPLES/02_twoDOFoscillator_cubicSpring/twoDOFoscillator_cubicSpring.m` | `examples/02_two_dof_cubic/run.py` |
+| `03_two_dof_unilateral.ipynb` | `matlab_src/EXAMPLES/03_twoDOFoscillator_unilateralSpring/twoDOFoscillator_unilateralSpring.m` | `examples/03_two_dof_unilateral/run.py` |
+| `04_two_dof_tanh_friction.ipynb` | `matlab_src/EXAMPLES/05_twoDOFoscillator_tanhDryFriction_NM/twoDOFoscillator_tanhDryFriction_NM.m` | `examples/04_two_dof_tanh_friction/run.py` |
+| `05_geometric_nonlinearity.ipynb` | `matlab_src/EXAMPLES/06_twoSprings_geometricNonlinearity/twoSprings_geometricNonlinearity.m` | `examples/05_geometric_nonlinearity/run.py` |
+| `06_multi_dof_multi_nl.ipynb` | `matlab_src/EXAMPLES/07_multiDOFoscillator_multipleNonlinearities/multiDOFoscillator_multipleNonlinearities.m` | `examples/06_multi_dof_multi_nl/run.py` |
+| `07_beam_tanh_friction.ipynb` | `matlab_src/EXAMPLES/08_beam_tanhDryFriction/beam_tanhDryFriction_simple.m` | `examples/07_beam_tanh_friction/run.py` |
+| `08_beam_cubic_spring_nma.ipynb` | `matlab_src/EXAMPLES/09_beam_cubicSpring_NM/beam_cubicSpring_NM1.m` | `examples/08_beam_cubic_spring_nma/run.py` |
 
 ---
 
@@ -30,7 +30,7 @@ For each example, create a thin Octave wrapper next to the MATLAB script that:
 2. Runs the original example script
 3. Saves the key variables to a `.mat` file
 
-Example wrapper (`matlab/NLvib/EXAMPLES/02_twoDOFoscillator_cubicSpring/save_data.m`):
+Example wrapper (`matlab_src/EXAMPLES/02_twoDOFoscillator_cubicSpring/save_data.m`):
 ```matlab
 addpath(genpath(fullfile(fileparts(mfilename('fullpath')), '..', '..', 'SRC')));
 run('twoDOFoscillator_cubicSpring.m');
@@ -40,7 +40,7 @@ save('hb_data.mat', 'Om_HB', 'Q_HB', 'a_rms_HB');
 ### Step 2 — Run with Octave from Python (subprocess)
 ```python
 import subprocess, shutil
-script_dir = repo_root / 'matlab/NLvib/EXAMPLES/02_twoDOFoscillator_cubicSpring'
+script_dir = repo_root / 'matlab_src/EXAMPLES/02_twoDOFoscillator_cubicSpring'
 subprocess.run(
     ['octave', '--no-gui', '--path', str(script_dir), 'save_data.m'],
     cwd=str(script_dir), check=True, capture_output=True
@@ -191,7 +191,7 @@ In MATLAB example 02: `ki=[1, 0.0453, 0]` → Python `STIFFNESSES=[1.0, 0.0453, 
 
 ## Notebook Structure Template
 
-Each `notebooks/comparison/XX_<name>.ipynb` should have these cells:
+Each `examples/comparison/XX_<name>.ipynb` should have these cells:
 
 1. **Markdown header**: example name, what's being compared, reference
 2. **Imports + path setup**
@@ -222,14 +222,14 @@ The final section of every notebook must follow this 6-cell layout:
 
 ```bash
 # From repo root
-jupyter notebook notebooks/comparison/02_two_dof_cubic.ipynb
+jupyter notebook examples/comparison/02_two_dof_cubic.ipynb
 # or non-interactively:
-jupyter nbconvert --to notebook --execute notebooks/comparison/02_two_dof_cubic.ipynb
+jupyter nbconvert --to notebook --execute examples/comparison/02_two_dof_cubic.ipynb
 ```
 
 ## Prerequisite: MATLAB .mat save scripts
 
-Each agent must create `matlab/NLvib/EXAMPLES/<XX>/save_data.m` before running.
+Each agent must create `matlab_src/EXAMPLES/<XX>/save_data.m` before running.
 The SRC path to add is always: `../../SRC` relative to the EXAMPLES subfolder.
 Check which variables the .m script outputs by reading it first.
 
@@ -238,7 +238,7 @@ Check which variables the .m script outputs by reading it first.
 ## Example 02 is the Reference Implementation
 Task `02_two_dof_cubic` was completed manually and validated. Use it as the template
 for all other comparison notebooks. The Python curve now matches MATLAB's S-shaped
-FRF with two peaks/folds. See `notebooks/comparison/02_two_dof_cubic.ipynb` once
+FRF with two peaks/folds. See `examples/comparison/02_two_dof_cubic.ipynb` once
 that task is done.
 
 ---

@@ -410,21 +410,21 @@ Tier 5 (needs Tier 4)
 
 - **Status**: T-29–T-36 `done` (T-34 caveat: Jenkins element model gap — see session log)
 - **Deps**: T-15 through T-22 (all done); Octave 11.1.0 installed at `/usr/local/bin/octave`
-- **Module**: `notebooks/comparison/`
-- **Full context**: `notebooks/comparison/CONTEXT.md` — **read before starting any of these tasks**
+- **Module**: `examples/comparison/`
+- **Full context**: `examples/comparison/CONTEXT.md` — **read before starting any of these tasks**
 - **Approach**: Each notebook (1) creates a thin `save_data.m` wrapper that runs the original MATLAB script via Octave and saves HB solution variables to `hb_data.mat`, (2) runs the Python HB continuation inline using the same parameters as `run.py`, (3) overlays both curves on one figure, (4) prints a peak amplitude comparison table, (5) asserts < 5% relative error at peak.
 - **One agent per task** — tasks are fully independent, run in parallel.
 
 | Task | Notebook | MATLAB source | Python source |
 |------|----------|---------------|---------------|
-| T-29 | `notebooks/comparison/02_two_dof_cubic.ipynb` | `matlab/NLvib/EXAMPLES/02_twoDOFoscillator_cubicSpring/` | `examples/02_two_dof_cubic/run.py` |
-| T-30 | `notebooks/comparison/01_duffing.ipynb` | `matlab/NLvib/EXAMPLES/01_Duffing/` | `examples/01_duffing/run.py` |
-| T-31 | `notebooks/comparison/03_two_dof_unilateral.ipynb` | `matlab/NLvib/EXAMPLES/03_twoDOFoscillator_unilateralSpring/` | `examples/03_two_dof_unilateral/run.py` |
-| T-32 | `notebooks/comparison/04_two_dof_tanh_friction.ipynb` | `matlab/NLvib/EXAMPLES/05_twoDOFoscillator_tanhDryFriction_NM/` | `examples/04_two_dof_tanh_friction/run.py` |
-| T-33 | `notebooks/comparison/05_geometric_nonlinearity.ipynb` | `matlab/NLvib/EXAMPLES/06_twoSprings_geometricNonlinearity/` | `examples/05_geometric_nonlinearity/run.py` |
-| T-34 | `notebooks/comparison/06_multi_dof_multi_nl.ipynb` | `matlab/NLvib/EXAMPLES/07_multiDOFoscillator_multipleNonlinearities/` | `examples/06_multi_dof_multi_nl/run.py` |
-| T-35 | `notebooks/comparison/07_beam_tanh_friction.ipynb` | `matlab/NLvib/EXAMPLES/08_beam_tanhDryFriction/` | `examples/07_beam_tanh_friction/run.py` |
-| T-36 | `notebooks/comparison/08_beam_cubic_spring_nma.ipynb` | `matlab/NLvib/EXAMPLES/09_beam_cubicSpring_NM/` | `examples/08_beam_cubic_spring_nma/run.py` |
+| T-29 | `examples/comparison/02_two_dof_cubic.ipynb` | `matlab_src/EXAMPLES/02_twoDOFoscillator_cubicSpring/` | `examples/02_two_dof_cubic/run.py` |
+| T-30 | `examples/comparison/01_duffing.ipynb` | `matlab_src/EXAMPLES/01_Duffing/` | `examples/01_duffing/run.py` |
+| T-31 | `examples/comparison/03_two_dof_unilateral.ipynb` | `matlab_src/EXAMPLES/03_twoDOFoscillator_unilateralSpring/` | `examples/03_two_dof_unilateral/run.py` |
+| T-32 | `examples/comparison/04_two_dof_tanh_friction.ipynb` | `matlab_src/EXAMPLES/05_twoDOFoscillator_tanhDryFriction_NM/` | `examples/04_two_dof_tanh_friction/run.py` |
+| T-33 | `examples/comparison/05_geometric_nonlinearity.ipynb` | `matlab_src/EXAMPLES/06_twoSprings_geometricNonlinearity/` | `examples/05_geometric_nonlinearity/run.py` |
+| T-34 | `examples/comparison/06_multi_dof_multi_nl.ipynb` | `matlab_src/EXAMPLES/07_multiDOFoscillator_multipleNonlinearities/` | `examples/06_multi_dof_multi_nl/run.py` |
+| T-35 | `examples/comparison/07_beam_tanh_friction.ipynb` | `matlab_src/EXAMPLES/08_beam_tanhDryFriction/` | `examples/07_beam_tanh_friction/run.py` |
+| T-36 | `examples/comparison/08_beam_cubic_spring_nma.ipynb` | `matlab_src/EXAMPLES/09_beam_cubicSpring_NM/` | `examples/08_beam_cubic_spring_nma/run.py` |
 
 **Key technical learnings to apply (from Session 3):**
 - `polynomial_stiffness` `target_dof` must be `dof_indices[0]`, not `min(dof_indices)` — fixed in commit `0f3a25f`
@@ -456,7 +456,7 @@ Tier 5 (needs Tier 4)
   - Update `__init__.py` exports
   - Update `CONTEXT.md` with element description
 - **Equation refs**: Jenkins (1962); Masing (1926); Krack & Gross §C.2 (friction elements)
-- **MATLAB reference**: `matlab/NLvib/SRC/MechanicalSystems/` — `elasticDryFriction.m` and `elasticDryFriction_force.m`
+- **MATLAB reference**: `matlab_src/SRC/MechanicalSystems/` — `elasticDryFriction.m` and `elasticDryFriction_force.m`
 - **Tests**: `tests/unit/test_elements.py`
   - Force at zero amplitude = 0
   - Force saturates at ±f_lim for large amplitude
@@ -469,13 +469,13 @@ Tier 5 (needs Tier 4)
 ### T-38 — Fix Notebook 06: Multi-DOF Multi-NL Parity (Jenkins Element)
 - **Status**: `done`
 - **Deps**: T-37
-- **Module**: `notebooks/comparison/06_multi_dof_multi_nl.ipynb`, `examples/06_multi_dof_multi_nl/run.py`
+- **Module**: `examples/comparison/06_multi_dof_multi_nl.ipynb`, `examples/06_multi_dof_multi_nl/run.py`
 - **Goal**: Reduce error from 60.7% to < 5% by replacing `tanh_dry_friction` with `elastic_dry_friction` for the two friction elements in MATLAB example 07
-- **MATLAB reference**: `matlab/NLvib/EXAMPLES/07_multiDOFoscillator_multipleNonlinearities/multiDOFoscillator_multipleNonlinearities.m`
+- **MATLAB reference**: `matlab_src/EXAMPLES/07_multiDOFoscillator_multipleNonlinearities/multiDOFoscillator_multipleNonlinearities.m`
   - Uses `elasticDryFriction` with `stiffness=20`, `friction_limit_force=1` applied at DOFs W1=[1;0;0] and W2=[-1;1;0]
   - Also uses cubic springs (k3=1) at W3, W4 and unilateral spring (k=1, gap=0.25) at W5
 - **Changes required**:
-  1. Update `notebooks/comparison/06_multi_dof_multi_nl.ipynb` to use `elastic_dry_friction(k=20, f_lim=1, ...)` for friction elements
+  1. Update `examples/comparison/06_multi_dof_multi_nl.ipynb` to use `elastic_dry_friction(k=20, f_lim=1, ...)` for friction elements
   2. Update `examples/06_multi_dof_multi_nl/run.py` to use `elastic_dry_friction`
   3. Reduce assertion tolerance from 70% back to 5%
   4. Verify all 3 DOF FRF curves match MATLAB shapes
@@ -486,7 +486,7 @@ Tier 5 (needs Tier 4)
 ### T-39 — Fix Notebook 03: Two-DOF Unilateral Spring Parity
 - **Status**: `done`
 - **Deps**: T-31 work (done) — investigate current differences
-- **Module**: `notebooks/comparison/03_two_dof_unilateral.ipynb`, `examples/03_two_dof_unilateral/run.py`
+- **Module**: `examples/comparison/03_two_dof_unilateral.ipynb`, `examples/03_two_dof_unilateral/run.py`
 - **Known MATLAB features not in current notebook**:
   - MATLAB computes Shooting method solution alongside HB (two overlapping curves)
   - MATLAB performs Floquet stability analysis on Shooting solutions (stable/unstable branches coloured)
@@ -505,7 +505,7 @@ Tier 5 (needs Tier 4)
 ### T-40 — Fix Notebook 04: Two-DOF Tanh Friction NMA Parity
 - **Status**: `done`
 - **Deps**: T-32 work (done) — investigate current differences
-- **Module**: `notebooks/comparison/04_two_dof_tanh_friction.ipynb`, `examples/04_two_dof_tanh_friction/run.py`
+- **Module**: `examples/comparison/04_two_dof_tanh_friction.ipynb`, `examples/04_two_dof_tanh_friction/run.py`
 - **Known MATLAB features to verify**:
   - MATLAB computes two NMA branches: "free sliding contact" (lower freq) and "fixed contact" (linear, higher freq)
   - MATLAB also shows Shooting NMA alongside HB NMA
@@ -523,7 +523,7 @@ Tier 5 (needs Tier 4)
 ### T-41 — Fix Notebook 05: Geometric Nonlinearity Parity
 - **Status**: `done`
 - **Deps**: T-33 work (done) — improve peak accuracy and match all MATLAB plots
-- **Module**: `notebooks/comparison/05_geometric_nonlinearity.ipynb`, `examples/05_geometric_nonlinearity/run.py`
+- **Module**: `examples/comparison/05_geometric_nonlinearity.ipynb`, `examples/05_geometric_nonlinearity/run.py`
 - **Known issues**:
   - 3.78% error at peak tip — `ds_max` too coarse (Python 0.01 vs MATLAB 0.005)
   - MATLAB computes NMA backbone + FRF at 4 excitation levels `[3e-4, 5e-4, 1e-3, 3e-3]` — Python notebook only shows 1 level
@@ -541,10 +541,10 @@ Tier 5 (needs Tier 4)
 ### T-42 — Fix Example 07 run.py Parameters + Notebook 07 Parity
 - **Status**: `done`
 - **Deps**: T-35 work (done) — parameter audit
-- **Module**: `examples/07_beam_tanh_friction/run.py`, `notebooks/comparison/07_beam_tanh_friction.ipynb`
+- **Module**: `examples/07_beam_tanh_friction/run.py`, `examples/comparison/07_beam_tanh_friction.ipynb`
 - **Known issue**: `run.py` uses different beam geometry than MATLAB (`n_elem=19, L=0.7` vs MATLAB `n_elem=8, L=2.0` from `beam.mat`). Notebook 07 already uses correct MATLAB params — `run.py` needs to be brought into alignment.
 - **Investigation required first**:
-  1. Read `matlab/NLvib/EXAMPLES/08_beam_tanhDryFriction/beam_tanhDryFriction_simple.m` — confirm it loads `beam.mat`
+  1. Read `matlab_src/EXAMPLES/08_beam_tanhDryFriction/beam_tanhDryFriction_simple.m` — confirm it loads `beam.mat`
   2. Read or run `beam.mat` to extract exact beam geometry and system matrices
   3. Determine canonical parameters (MATLAB `beam.mat` is the ground truth)
 - **Changes required**:
@@ -559,7 +559,7 @@ Tier 5 (needs Tier 4)
 ### T-43 — Fix Notebook 08: Beam Cubic Spring NMA Parity
 - **Status**: `done`
 - **Deps**: T-36 work (done) — reduce Galerkin reduction discrepancy
-- **Module**: `notebooks/comparison/08_beam_cubic_spring_nma.ipynb`, `examples/08_beam_cubic_spring_nma/run.py`
+- **Module**: `examples/comparison/08_beam_cubic_spring_nma.ipynb`, `examples/08_beam_cubic_spring_nma/run.py`
 - **Known issue**: 4.64% error at 90th-percentile amplitude due to single-mode Galerkin reduction. MATLAB uses full-DOF NMA with all 38 DOFs.
 - **Investigation required**:
   1. Profile full-DOF `hb_residual_nma` runtime for n_dof=38, H=5 — determine if feasible
@@ -589,7 +589,7 @@ Tier 5 (needs Tier 4)
 ### T-45 — Update Documentation for Parity Fixes
 - **Status**: `done`
 - **Deps**: T-37, T-38, T-39, T-40, T-41, T-42, T-43
-- **Module**: `notebooks/comparison/CONTEXT.md`, `docs/`, `src/nlvib/nonlinearities/elements.py` docstrings
+- **Module**: `examples/comparison/CONTEXT.md`, `docs/`, `src/nlvib/nonlinearities/elements.py` docstrings
 - **Deliver**:
   - Update `CONTEXT.md`: add `elastic_dry_friction` element description, update T-34/T-38 status note
   - Docstring for `elastic_dry_friction` with K&G equation reference
@@ -600,7 +600,7 @@ Tier 5 (needs Tier 4)
 ### T-46 — Match Axis Scales Between MATLAB and Python Plots (All Notebooks 03–08)
 - **Status**: `done`
 - **Deps**: T-38–T-43 (done)
-- **Module**: `notebooks/comparison/03_*.ipynb` through `08_*.ipynb`, corresponding `examples/*/run.py`
+- **Module**: `examples/comparison/03_*.ipynb` through `08_*.ipynb`, corresponding `examples/*/run.py`
 - **Goal**: Python plots must use the **same x-axis range, y-axis range, and y-axis scale (log vs linear)** as the MATLAB reference plot in each notebook, so the two adjacent cells are directly visually comparable.
 - **Changes required** (per notebook):
   1. Read the MATLAB `.m` script to extract `xlim`, `ylim`, axis scale (`semilogy` vs `plot`)
@@ -614,7 +614,7 @@ Tier 5 (needs Tier 4)
 
 - **Status**: T-47–T-54 `done`
 - **Deps**: T-29–T-43 (all done); T-41 (`ready` — run after T-41 completes for notebook 05)
-- **Module**: `notebooks/comparison/`
+- **Module**: `examples/comparison/`
 - **Goal**: Add a dedicated `## MATLAB vs Python` section to each comparison notebook with quantitative analysis, side-by-side plots (no overlay), runtime comparison, and margin-of-error table. The existing `## MATLAB` and `## Python` sections are preserved unchanged.
 - **One agent per task** — all 8 tasks are independent, run in parallel.
 
@@ -633,14 +633,14 @@ Tier 5 (needs Tier 4)
 
 | Task | Notebook | Notes |
 |------|----------|-------|
-| T-47 | `notebooks/comparison/01_duffing.ipynb` | Include HB + Shooting side-by-side; harmonic content Q1/Q3/Q5 |
-| T-48 | `notebooks/comparison/02_two_dof_cubic.ipynb` | DOF 0 and DOF 1 side-by-side panels for each solver |
-| T-49 | `notebooks/comparison/03_two_dof_unilateral.ipynb` | Include Floquet stability colouring on Python side; note bifurcation points |
-| T-50 | `notebooks/comparison/04_two_dof_tanh_friction.ipynb` | Backbone curves; note free-sliding vs fixed-contact modes |
-| T-51 | `notebooks/comparison/05_geometric_nonlinearity.ipynb` | 4-level FRF side-by-side if T-41 complete; else single level |
-| T-52 | `notebooks/comparison/06_multi_dof_multi_nl.ipynb` | All 3 DOF curves side-by-side; note Jenkins element convergence |
-| T-53 | `notebooks/comparison/07_beam_tanh_friction.ipynb` | Log y-axis 10^-n ticks both panels; note FD step patch |
-| T-54 | `notebooks/comparison/08_beam_cubic_spring_nma.ipynb` | Backbone curve side-by-side; note Galerkin vs full-DOF |
+| T-47 | `examples/comparison/01_duffing.ipynb` | Include HB + Shooting side-by-side; harmonic content Q1/Q3/Q5 |
+| T-48 | `examples/comparison/02_two_dof_cubic.ipynb` | DOF 0 and DOF 1 side-by-side panels for each solver |
+| T-49 | `examples/comparison/03_two_dof_unilateral.ipynb` | Include Floquet stability colouring on Python side; note bifurcation points |
+| T-50 | `examples/comparison/04_two_dof_tanh_friction.ipynb` | Backbone curves; note free-sliding vs fixed-contact modes |
+| T-51 | `examples/comparison/05_geometric_nonlinearity.ipynb` | 4-level FRF side-by-side if T-41 complete; else single level |
+| T-52 | `examples/comparison/06_multi_dof_multi_nl.ipynb` | All 3 DOF curves side-by-side; note Jenkins element convergence |
+| T-53 | `examples/comparison/07_beam_tanh_friction.ipynb` | Log y-axis 10^-n ticks both panels; note FD step patch |
+| T-54 | `examples/comparison/08_beam_cubic_spring_nma.ipynb` | Backbone curve side-by-side; note Galerkin vs full-DOF |
 
 **Acceptance per notebook:**
 - `## MATLAB vs Python` section present with all 6 cell types above
@@ -652,12 +652,12 @@ Tier 5 (needs Tier 4)
 
 ---
 
-### T-55 through T-62 — Demo Notebook Accuracy Review (notebooks/01–08)
+### T-55 through T-62 — Demo Notebook Accuracy Review (examples/notebooks/01–08)
 
 - **Status**: T-55–T-62 `done`
 - **Deps**: T-29–T-43 (all done — comparison notebooks provide MATLAB-validated ground truth)
 - **Module**: `notebooks/` (the non-comparison demo notebooks)
-- **Goal**: Audit each `notebooks/0X_*.ipynb` against the corresponding `notebooks/comparison/0X_*.ipynb` to ensure parameters, peak values, and plots are consistent with MATLAB-validated results. Fix any discrepancies found.
+- **Goal**: Audit each `examples/notebooks/0X_*.ipynb` against the corresponding `examples/comparison/0X_*.ipynb` to ensure parameters, peak values, and plots are consistent with MATLAB-validated results. Fix any discrepancies found.
 - **One agent per task** — all 8 tasks are independent, run in parallel.
 
 **Checks per notebook:**
@@ -670,14 +670,14 @@ Tier 5 (needs Tier 4)
 
 | Task | Demo notebook | Reference comparison notebook |
 |------|--------------|-------------------------------|
-| T-55 | `notebooks/01_duffing.ipynb` | `notebooks/comparison/01_duffing.ipynb` |
-| T-56 | `notebooks/02_two_dof_cubic.ipynb` | `notebooks/comparison/02_two_dof_cubic.ipynb` |
-| T-57 | `notebooks/03_two_dof_unilateral.ipynb` | `notebooks/comparison/03_two_dof_unilateral.ipynb` |
-| T-58 | `notebooks/04_two_dof_tanh_friction.ipynb` | `notebooks/comparison/04_two_dof_tanh_friction.ipynb` |
-| T-59 | `notebooks/05_geometric_nonlinearity.ipynb` | `notebooks/comparison/05_geometric_nonlinearity.ipynb` |
-| T-60 | `notebooks/06_multi_dof_multi_nl.ipynb` | `notebooks/comparison/06_multi_dof_multi_nl.ipynb` |
-| T-61 | `notebooks/07_beam_tanh_friction.ipynb` | `notebooks/comparison/07_beam_tanh_friction.ipynb` |
-| T-62 | `notebooks/08_beam_cubic_spring_nma.ipynb` | `notebooks/comparison/08_beam_cubic_spring_nma.ipynb` |
+| T-55 | `examples/notebooks/01_duffing.ipynb` | `examples/comparison/01_duffing.ipynb` |
+| T-56 | `examples/notebooks/02_two_dof_cubic.ipynb` | `examples/comparison/02_two_dof_cubic.ipynb` |
+| T-57 | `examples/notebooks/03_two_dof_unilateral.ipynb` | `examples/comparison/03_two_dof_unilateral.ipynb` |
+| T-58 | `examples/notebooks/04_two_dof_tanh_friction.ipynb` | `examples/comparison/04_two_dof_tanh_friction.ipynb` |
+| T-59 | `examples/notebooks/05_geometric_nonlinearity.ipynb` | `examples/comparison/05_geometric_nonlinearity.ipynb` |
+| T-60 | `examples/notebooks/06_multi_dof_multi_nl.ipynb` | `examples/comparison/06_multi_dof_multi_nl.ipynb` |
+| T-61 | `examples/notebooks/07_beam_tanh_friction.ipynb` | `examples/comparison/07_beam_tanh_friction.ipynb` |
+| T-62 | `examples/notebooks/08_beam_cubic_spring_nma.ipynb` | `examples/comparison/08_beam_cubic_spring_nma.ipynb` |
 
 **Acceptance per notebook:**
 - Parameters 1:1 with comparison notebook (document any intentional differences with a comment)
@@ -724,19 +724,19 @@ Tier 5 (needs Tier 4)
 
 - **Status**: `done`
 - **Deps**: T-47–T-54 (new comparison sections), T-55–T-62 (demo notebook fixes), T-63 (test updates)
-- **Module**: `docs/`, `notebooks/comparison/CONTEXT.md`, `README.md`, `src/nlvib/` docstrings
+- **Module**: `docs/`, `examples/comparison/CONTEXT.md`, `README.md`, `src/nlvib/` docstrings
 - **Goal**: Bring all documentation up to date with current codebase state and comparison notebook results.
 
 **Deliverables:**
 
-1. **`notebooks/comparison/CONTEXT.md`**:
+1. **`examples/comparison/CONTEXT.md`**:
    - Add `elastic_dry_friction` element description (Jenkins/Masing model)
    - Update template to include the `## MATLAB vs Python` section structure (T-47–T-54)
    - Add `_FD_STEP` patching note for small-amplitude beam problems
    - Update status table: all 8 notebooks passing with final error percentages
 
 2. **`README.md`**:
-   - Add "Comparison Notebooks" section linking to `notebooks/comparison/`
+   - Add "Comparison Notebooks" section linking to `examples/comparison/`
    - Add accuracy table: example name, MATLAB source, peak error %
 
 3. **API docs (`docs/`)** — re-run `mkdocs build --strict`:
@@ -854,7 +854,7 @@ Tier 5 (needs Tier 4)
 - **Verbose continuation**: `ContinuationOptions.verbose=True` prints MATLAB-style step messages.
 - **All 8 example parameters corrected 1:1 to MATLAB demos** (masses, stiffnesses, damping, H, omega range).
 - **Example 02 output**: Consolidated to single `frequency_response.png` matching MATLAB convention (a_rms DOF0 vs omega).
-- **Comparison notebooks spec**: T-29 through T-36 added. Context in `notebooks/comparison/CONTEXT.md`.
+- **Comparison notebooks spec**: T-29 through T-36 added. Context in `examples/comparison/CONTEXT.md`.
 - **Next**: PM assigns T-29 first (reference template), then T-30–T-36 in parallel.
 
 ### Session 2 — Full build (2026-03-25)

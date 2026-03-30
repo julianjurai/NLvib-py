@@ -13,7 +13,7 @@
 | Hardcoded paths | FIXED | P0 | `/opt/homebrew` fallback removed from 10 notebook cells |
 | Attribution | PASS (with fix) | P0 | `visualization/plots.py` header updated |
 | License | FIXED | P0 | `LICENSE` file created at repo root |
-| `.gitignore` completeness | FIXED | P1 | Added `.env`, `.env.*`, `!notebooks/comparison/*.ipynb` |
+| `.gitignore` completeness | FIXED | P1 | Added `.env`, `.env.*`, `!examples/notebooks/comparison/*.ipynb` |
 | Notebook output scrubbing | FIXED | P0 | 7 comparison notebooks cleared; `nbstripout` not configured |
 | `__init__.py` exports | FIXED | P1 | `elastic_dry_friction` added to top-level `__all__` |
 | `CITATION.cff` | FIXED | P1 | Created at repo root |
@@ -41,14 +41,14 @@ octave_bin = shutil.which('octave') or '/opt/homebrew/bin/octave'
 ```
 
 **Fix applied**: Replaced with a proper error pattern in all 10 occurrences across:
-- `notebooks/comparison/01_duffing.ipynb` (cells 3, 16)
-- `notebooks/comparison/02_two_dof_cubic.ipynb` (cell 3)
-- `notebooks/comparison/03_two_dof_unilateral.ipynb` (cell 3)
-- `notebooks/comparison/04_two_dof_tanh_friction.ipynb` (cell 3)
-- `notebooks/comparison/05_geometric_nonlinearity.ipynb` (cell 3)
-- `notebooks/comparison/06_multi_dof_multi_nl.ipynb` (cell 3)
-- `notebooks/comparison/07_beam_tanh_friction.ipynb` (cell 3)
-- `notebooks/comparison/08_beam_cubic_spring_nma.ipynb` (cells 3, 18)
+- `examples/notebooks/comparison/01_duffing.ipynb` (cells 3, 16)
+- `examples/notebooks/comparison/02_two_dof_cubic.ipynb` (cell 3)
+- `examples/notebooks/comparison/03_two_dof_unilateral.ipynb` (cell 3)
+- `examples/notebooks/comparison/04_two_dof_tanh_friction.ipynb` (cell 3)
+- `examples/notebooks/comparison/05_geometric_nonlinearity.ipynb` (cell 3)
+- `examples/notebooks/comparison/06_multi_dof_multi_nl.ipynb` (cell 3)
+- `examples/notebooks/comparison/07_beam_tanh_friction.ipynb` (cell 3)
+- `examples/notebooks/comparison/08_beam_cubic_spring_nma.ipynb` (cells 3, 18)
 
 New pattern:
 ```python
@@ -124,7 +124,7 @@ The original NLvib MATLAB toolbox is LGPLv3. An independent Python re-implementa
 | `.env` | MISSING — **added** `.env` and `.env.*` |
 | `site/` | PASS — present |
 
-**Additional fix**: Added `!notebooks/comparison/*.ipynb` negation — the existing `!notebooks/*.ipynb` pattern does not cover the `notebooks/comparison/` subdirectory, so comparison notebooks were being ignored despite needing to be committed.
+**Additional fix**: Added `!examples/notebooks/comparison/*.ipynb` negation — the existing `!examples/notebooks/*.ipynb` pattern does not cover the `examples/notebooks/comparison/` subdirectory, so comparison notebooks were being ignored despite needing to be committed.
 
 ---
 
@@ -134,20 +134,20 @@ The original NLvib MATLAB toolbox is LGPLv3. An independent Python re-implementa
 
 `nbstripout` is not installed and not configured as a git filter.
 
-Checked all 25 notebooks across `demo/`, `notebooks/`, and `notebooks/comparison/`:
+Checked all 25 notebooks across `demo/`, `examples/notebooks/`, and `examples/notebooks/comparison/`:
 
 | Notebook group | Execution counts / outputs |
 |---|---|
 | `demo/*.ipynb` (9 notebooks) | PASS — all clean (0 non-null counts, 0 output cells) |
-| `notebooks/*.ipynb` (8 notebooks) | PASS — all clean |
-| `notebooks/comparison/05_geometric_nonlinearity.ipynb` | PASS — already clean |
-| `notebooks/comparison/01_duffing.ipynb` | FIXED — had 9 non-null execution counts and 9 output cells |
-| `notebooks/comparison/02_two_dof_cubic.ipynb` | FIXED — had 4/3 |
-| `notebooks/comparison/03_two_dof_unilateral.ipynb` | FIXED — had 7/7 |
-| `notebooks/comparison/04_two_dof_tanh_friction.ipynb` | FIXED — had 9/9 |
-| `notebooks/comparison/06_multi_dof_multi_nl.ipynb` | FIXED — had 9/9 |
-| `notebooks/comparison/07_beam_tanh_friction.ipynb` | FIXED — had 9/9 (outputs contained `/opt/homebrew` path strings) |
-| `notebooks/comparison/08_beam_cubic_spring_nma.ipynb` | FIXED — had 8/8 |
+| `examples/notebooks/*.ipynb` (8 notebooks) | PASS — all clean |
+| `examples/notebooks/comparison/05_geometric_nonlinearity.ipynb` | PASS — already clean |
+| `examples/notebooks/comparison/01_duffing.ipynb` | FIXED — had 9 non-null execution counts and 9 output cells |
+| `examples/notebooks/comparison/02_two_dof_cubic.ipynb` | FIXED — had 4/3 |
+| `examples/notebooks/comparison/03_two_dof_unilateral.ipynb` | FIXED — had 7/7 |
+| `examples/notebooks/comparison/04_two_dof_tanh_friction.ipynb` | FIXED — had 9/9 |
+| `examples/notebooks/comparison/06_multi_dof_multi_nl.ipynb` | FIXED — had 9/9 |
+| `examples/notebooks/comparison/07_beam_tanh_friction.ipynb` | FIXED — had 9/9 (outputs contained `/opt/homebrew` path strings) |
+| `examples/notebooks/comparison/08_beam_cubic_spring_nma.ipynb` | FIXED — had 8/8 |
 
 **P1 remaining**: Install `nbstripout` and configure as a git filter (`nbstripout --install`) to prevent future commits with outputs. Not done here as it modifies git config.
 
@@ -241,7 +241,7 @@ No hardcoded secrets found.
 | Added `elastic_dry_friction` to top-level `__all__` | `src/nlvib/__init__.py` |
 | Created `CITATION.cff` | `CITATION.cff` (new file) |
 | Added `.env`, `.env.*` to `.gitignore` | `.gitignore` |
-| Added `!notebooks/comparison/*.ipynb` negation | `.gitignore` |
+| Added `!examples/notebooks/comparison/*.ipynb` negation | `.gitignore` |
 
 ## P1/P2 Items — Not Fixed, Require Follow-up
 

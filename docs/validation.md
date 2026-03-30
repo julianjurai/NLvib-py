@@ -5,7 +5,7 @@ original MATLAB/Octave reference implementation.
 
 ## Method
 
-Each comparison notebook in [`notebooks/comparison/`](../notebooks/comparison/) runs the
+Each comparison notebook in [`examples/comparison/`](../examples/comparison/) runs the
 Python harmonic balance continuation and the MATLAB/Octave reference for the same example,
 then overlays both curves on a single figure and computes peak amplitude and peak frequency
 errors.
@@ -55,7 +55,7 @@ Fixtures are stored in `tests/fixtures/*.npz`.
 
 - **Beam examples (07, 08)**: The finite-difference step `_FD_STEP` used for Jacobian
   estimation must be patched to `1.5e-15` for beam problems where harmonic amplitudes are
-  in the `Q ~ 1e-8` regime. See `notebooks/comparison/CONTEXT.md` for details.
+  in the `Q ~ 1e-8` regime. See `examples/comparison/CONTEXT.md` for details.
 
 ## Reference
 
